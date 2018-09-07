@@ -1,0 +1,8 @@
+# ~/.config/autostart/ubuntu-nordvpn-indicator.desktop
+
+[Desktop Entry]
+Name=Ubuntu NordVPN Indicator
+Type=Application
+Exec=/usr/bin/python /opt/ubuntu-nordvpn-indicator/nordvpn_indicator.py
+Comment[en_US]=Adds an application indicator for NordVPN (dis)connecting
+Comment=Adds an application indicator for NordVPN (dis)connecting
