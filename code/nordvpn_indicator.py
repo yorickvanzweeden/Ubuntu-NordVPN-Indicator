@@ -52,6 +52,7 @@ class Indicator(object):
         self.indicator.set_status(appindicator.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
         notify.init(APPINDICATOR_ID)
+        self.nordvpn.connect(self)
         gtk.main()
 
     def status_check_loop(self):
