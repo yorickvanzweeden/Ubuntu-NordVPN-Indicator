@@ -94,8 +94,23 @@ class Indicator(object):
         menu = gtk.Menu()
 
         item_connect = gtk.MenuItem('Connect')
-        item_connect.connect('activate', self.nordvpn.connect)
         menu.append(item_connect)
+
+        item_connect_auto = gtk.MenuItem('Auto')
+        item_connect_auto.connect('activate', self.nordvpn.connect)
+        item_connect.append(item_connect_auto)
+
+        item_connect_country = gtk.MenuItem('Countries')
+        item_connect.append(item_connect_country)
+
+        # Create menu with list of countries
+        countries = self.nordvpn.run_command('nordvpn countries')
+        if countries is not None:
+            for c in countries:
+                item = gtk.MenuItem(c)
+                # TODO pass the selected country name as argument
+                c.connect('activate', self.nordvpn.connect)
+                item_connect_country.append(item)
 
         item_disconnect = gtk.MenuItem('Disconnect')
         item_disconnect.connect('activate', self.nordvpn.disconnect)
