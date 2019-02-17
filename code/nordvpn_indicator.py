@@ -44,6 +44,9 @@ class Indicator(object):
         # Set recurrent timer for checking VPN status
         self.status_check_loop()
 
+        # List of countries
+        self.country_buttons = []
+
         # Add indicator
         self.indicator = appindicator.Indicator.new(
             APPINDICATOR_ID,
@@ -51,8 +54,8 @@ class Indicator(object):
             appindicator.IndicatorCategory.SYSTEM_SERVICES)
         self.indicator.set_status(appindicator.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
+
         notify.init(APPINDICATOR_ID)
-        self.nordvpn.connect(self)
         gtk.main()
 
     def status_check_loop(self):
@@ -72,8 +75,9 @@ class Indicator(object):
             message: Message for the notification
             connected: Connected status (True/False)
         """
-        if message != None:
-            notify.Notification.new("NordVPN", message, None).show()
+        # Removed notifications as the client already push them
+        # if message != None:
+        #     notify.Notification.new("NordVPN", message, None).show()
         self.indicator.set_icon(self.get_icon_path(connected))
 
     @staticmethod
@@ -93,24 +97,29 @@ class Indicator(object):
         """
         menu = gtk.Menu()
 
+        menu_connect = gtk.Menu()
         item_connect = gtk.MenuItem('Connect')
-        menu.append(item_connect)
+        item_connect.set_submenu(menu_connect)
 
         item_connect_auto = gtk.MenuItem('Auto')
-        item_connect_auto.connect('activate', self.nordvpn.connect)
-        item_connect.append(item_connect_auto)
+        item_connect_auto.connect('activate', self.auto_connect_cb)
+        menu_connect.append(item_connect_auto)
 
-        item_connect_country = gtk.MenuItem('Countries')
-        item_connect.append(item_connect_country)
+        menu.append(item_connect)
 
-        # Create menu with list of countries
         countries = self.nordvpn.run_command('nordvpn countries')
+        countries_menu = gtk.Menu()
+        item_connect_country = gtk.MenuItem('Countries')
+        item_connect_country.set_submenu(countries_menu)
         if countries is not None:
-            for c in countries:
-                item = gtk.MenuItem(c)
-                # TODO pass the selected country name as argument
-                c.connect('activate', self.nordvpn.connect)
-                item_connect_country.append(item)
+            result = ''.join(countries).split(' ')[2].split()
+            for c in result:
+                grp = self.country_buttons[0] if len(self.country_buttons) > 0 else None
+                item = gtk.RadioMenuItem(group=grp, label=c)
+                item.connect('toggled', self.country_connect_cb)
+                countries_menu.append(item)
+                self.country_buttons.append(item)
+        menu_connect.append(item_connect_country)
 
         item_disconnect = gtk.MenuItem('Disconnect')
         item_disconnect.connect('activate', self.nordvpn.disconnect)
@@ -135,6 +144,24 @@ class Indicator(object):
         self.timer.cancel()
         notify.uninit()
         gtk.main_quit()
+
+    def country_connect_cb(self, btn_toggled):
+        """
+        Callback function to handle the connection of a selected country
+        """
+        self.nordvpn.disconnect(None)
+        for btn in self.country_buttons:
+            if btn.get_active() and btn.get_label() != btn_toggled.get_label():
+                btn.set_active(False)
+        if btn_toggled.get_active():
+            self.nordvpn.connect_to_country(btn_toggled.get_label())
+
+    def auto_connect_cb(self, _):
+        """
+        Callback to handle connection to best server
+        """
+        self.nordvpn.disconnect(None)
+        self.nordvpn.connect(None)
 
 
 class NordVPN(object):
@@ -197,6 +224,23 @@ class NordVPN(object):
             _: As required by AppIndicator
         """
         output = self.run_command("nordvpn connect")
+
+        # Check output
+        if output != None:
+            matches = re.search('You are now connected to .*', output)
+            if matches != None:
+                output = matches.group(0)
+                self.connected = True
+            self._notify(output)
+
+    def connect_to_country(self, country):
+        """
+        Runs command to connect to a NordVPN server in the specified country
+
+        Args:
+            country: Country name as string
+        """
+        output = self.run_command("nordvpn connect {}".format(country))
 
         # Check output
         if output != None:
