@@ -41,12 +41,6 @@ class Indicator(object):
         nordvpn.attach(self)
         self.nordvpn = nordvpn
 
-        # Set recurrent timer for checking VPN status
-        self.status_check_loop()
-
-        # List of countries
-        self.country_buttons = []
-
         # Add indicator
         self.indicator = appindicator.Indicator.new(
             APPINDICATOR_ID,
@@ -54,6 +48,9 @@ class Indicator(object):
             appindicator.IndicatorCategory.SYSTEM_SERVICES)
         self.indicator.set_status(appindicator.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
+
+        # Set recurrent timer for checking VPN status
+        self.status_check_loop()
 
         notify.init(APPINDICATOR_ID)
         gtk.main()
@@ -66,6 +63,7 @@ class Indicator(object):
         self.timer.start()
         if hasattr(self, 'indicator'):
             self.nordvpn.status_check(None)
+            self.status_label.set_label(self.nordvpn.get_status())
 
     def update(self, message, connected):
         """
@@ -79,6 +77,7 @@ class Indicator(object):
         # if message != None:
         #     notify.Notification.new("NordVPN", message, None).show()
         self.indicator.set_icon(self.get_icon_path(connected))
+        self.status_label.set_label(self.nordvpn.get_status())
 
     @staticmethod
     def get_icon_path(connected):
@@ -97,10 +96,12 @@ class Indicator(object):
         """
         menu = gtk.Menu()
 
+        # Create a Connect submenu
         menu_connect = gtk.Menu()
         item_connect = gtk.MenuItem('Connect')
         item_connect.set_submenu(menu_connect)
 
+        # First item is to connect automatically
         item_connect_auto = gtk.MenuItem('Auto')
         item_connect_auto.connect('activate', self.auto_connect_cb)
         menu_connect.append(item_connect_auto)
@@ -114,20 +115,28 @@ class Indicator(object):
         if countries is not None:
             result = ''.join(countries).split(' ')[2].split()
             for c in result:
-                grp = self.country_buttons[0] if len(self.country_buttons) > 0 else None
-                item = gtk.RadioMenuItem(group=grp, label=c)
-                item.connect('toggled', self.country_connect_cb)
+                item = gtk.MenuItem(c)
+                item.connect('activate', self.country_connect_cb)
                 countries_menu.append(item)
-                self.country_buttons.append(item)
         menu_connect.append(item_connect_country)
 
         item_disconnect = gtk.MenuItem('Disconnect')
         item_disconnect.connect('activate', self.nordvpn.disconnect)
         menu.append(item_disconnect)
 
-        item_status_check = gtk.MenuItem('Status check')
-        item_status_check.connect('activate', self.nordvpn.status_check)
-        menu.append(item_status_check)
+        menu_status = gtk.Menu()
+        item_status = gtk.MenuItem('Status')
+        item_status.set_submenu(menu_status)
+
+        # First item is to connect automatically
+        item_refresh = gtk.MenuItem('Refresh')
+        item_refresh.connect('activate', self.nordvpn.status_check)
+        menu_status.append(item_refresh)
+
+        self.status_label = gtk.MenuItem('')
+        menu_status.append(self.status_label)
+
+        menu.append(item_status)
 
         item_quit = gtk.MenuItem('Quit')
         item_quit.connect('activate', self.quit)
@@ -150,11 +159,7 @@ class Indicator(object):
         Callback function to handle the connection of a selected country
         """
         self.nordvpn.disconnect(None)
-        for btn in self.country_buttons:
-            if btn.get_active() and btn.get_label() != btn_toggled.get_label():
-                btn.set_active(False)
-        if btn_toggled.get_active():
-            self.nordvpn.connect_to_country(btn_toggled.get_label())
+        self.nordvpn.connect_to_country(btn_toggled.get_label())
 
     def auto_connect_cb(self, _):
         """
@@ -178,6 +183,7 @@ class NordVPN(object):
     def __init__(self):
         self.indicator = None
         self.connected = False
+        self.status = ""
 
     def attach(self, indicator):
         """
@@ -276,7 +282,8 @@ class NordVPN(object):
         # Get reported NordVPN IP
         output = self.run_command("nordvpn status")
         if output != None:
-
+            print output
+            self.status = output.split('-')[1]
             matches = re.search(r'(([0-9])+\.){3}([0-9]+)', output)
             if matches != None:
                 connected_ip = matches.group(0)
@@ -288,6 +295,12 @@ class NordVPN(object):
         if connected_ip != None and self.connected is False:
             self.connected = True
             self.indicator.update(None, self.connected)
+
+    def get_status(self):
+        """
+        Returns the current status of the VPN connection as a string
+        """
+        return self.status
 
 
 def main():
