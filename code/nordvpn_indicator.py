@@ -137,6 +137,7 @@ class Indicator(object):
         # Add a label to show the current status details
         self.status_label = gtk.MenuItem('')
         menu_status.append(self.status_label)
+        self.status_label.set_sensitive(False)
 
         menu.append(item_status)
 
