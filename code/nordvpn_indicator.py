@@ -115,7 +115,7 @@ class Indicator(object):
         item_connect_country = gtk.MenuItem('Countries')
         item_connect_country.set_submenu(countries_menu)
         for c in countries:
-            item = gtk.MenuItem(c)
+            item = gtk.MenuItem(c.replace('_',' '))
             item.connect('activate', self.country_connect_cb)
             countries_menu.append(item)
         menu_connect.append(item_connect_country)
