@@ -140,13 +140,6 @@ class Indicator(object):
 
         menu.append(item_status)
 
-        # Create a submenu for the settings
-        menu_settings = gtk.Menu()
-        item_settings = gtk.MenuItem('Settings')
-        item_settings.set_submenu(menu_settings)
-        # TODO add settings
-        menu.append(item_settings)
-
         item_quit = gtk.MenuItem('Quit')
         item_quit.connect('activate', self.quit)
         menu.append(item_quit)
@@ -316,7 +309,10 @@ class NordVPN(object):
         countries = self.run_command('nordvpn countries')
         if countries is None:
             return []
-        return ''.join(countries).split(' ')[2].split()
+        country_list = ''.join(countries).split(' ')[2].split()
+        country_list.sort()
+        return country_list
+        #return countries.split(' ')[2].split().sort()
 
 
 def main():

@@ -28,7 +28,7 @@ install_deps()
 {
     # Install gir1.2-appindicator
     echo Installing AppIndicator
-    sudo apt-get install -y gir1.2-appindicator
+    sudo apt-get install -y gir1.2-appindicator python-gi
 }
 
 install_indicator()
@@ -40,7 +40,8 @@ install_indicator()
 
     # Installing autostart desktop file
     echo Making sure the indicator starts at boot using autostart
-    cp ubuntu-nordvpn-indicator.desktop ~/.config/autostart/
+    mkdir -p $HOME/.config/autostart
+    cp ubuntu-nordvpn-indicator.desktop $HOME/.config/autostart/
 }
 
 if ! command -v nordvpn > /dev/null 2>&1;
