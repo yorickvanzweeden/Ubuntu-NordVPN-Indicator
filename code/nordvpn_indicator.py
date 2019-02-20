@@ -75,7 +75,7 @@ class Indicator(object):
         self.nordvpn.status_check(None)
         self.status_label.set_label(self.nordvpn.get_status())
         self.indicator.set_icon(self.get_icon_path(self.nordvpn.is_connected()))
-        # TODO update the settings
+        self.update_settings_menu()
 
     @staticmethod
     def get_icon_path(connected):
@@ -147,29 +147,25 @@ class Indicator(object):
         item_settings = gtk.MenuItem('Settings')
         item_settings.set_submenu(menu_settings)
 
-        item_setting_tcp = gtk.CheckMenuItem(NordVPN.Settings.PROTOCOL.value)
-        item_setting_tcp.connect('toggled', self.on_setting_update)
-        menu_settings.append(item_setting_tcp)
-        item_setting_kill = gtk.CheckMenuItem(NordVPN.Settings.KILL_SWITCH.value)
-        item_setting_kill.connect('toggled', self.on_setting_update)
-        menu_settings.append(item_setting_kill)
-        item_setting_cybersec = gtk.CheckMenuItem(NordVPN.Settings.CYBER_SEC.value)
-        item_setting_cybersec.connect('toggled', self.on_setting_update)
-        menu_settings.append(item_setting_cybersec)
-        item_setting_obfuscate = gtk.CheckMenuItem(NordVPN.Settings.OBFUSCATE.value)
-        item_setting_obfuscate.connect('toggled', self.on_setting_update)
-        menu_settings.append(item_setting_obfuscate)
-        item_setting_autoconnect = gtk.CheckMenuItem(NordVPN.Settings.AUTO_CONNECT.value)
-        item_setting_autoconnect.connect('toggled', self.on_setting_update)
-        menu_settings.append(item_setting_autoconnect)
-        item_setting_dns = gtk.CheckMenuItem(NordVPN.Settings.DNS.value)
-        item_setting_dns.connect('toggled', self.on_setting_update)
-        menu_settings.append(item_setting_dns)
-
-        # TODO create a function to reflect the settings status
-        # It is used also in the update() function
-        settings = self.nordvpn.get_settings()
-        # et the toggle active or not based on settings[NordVPN.Settings.PROTOCOL.value]
+        self.item_setting_tcp = gtk.CheckMenuItem(NordVPN.Settings.PROTOCOL.value)
+        self.item_setting_tcp.connect('toggled', self.on_setting_update)
+        menu_settings.append(self.item_setting_tcp)
+        self.item_setting_kill = gtk.CheckMenuItem(NordVPN.Settings.KILL_SWITCH.value)
+        self.item_setting_kill.connect('toggled', self.on_setting_update)
+        menu_settings.append(self.item_setting_kill)
+        self.item_setting_cybersec = gtk.CheckMenuItem(NordVPN.Settings.CYBER_SEC.value)
+        self.item_setting_cybersec.connect('toggled', self.on_setting_update)
+        menu_settings.append(self.item_setting_cybersec)
+        self.item_setting_obfuscate = gtk.CheckMenuItem(NordVPN.Settings.OBFUSCATE.value)
+        self.item_setting_obfuscate.connect('toggled', self.on_setting_update)
+        menu_settings.append(self.item_setting_obfuscate)
+        self.item_setting_autoconnect = gtk.CheckMenuItem(NordVPN.Settings.AUTO_CONNECT.value)
+        self.item_setting_autoconnect.connect('toggled', self.on_setting_update)
+        menu_settings.append(self.item_setting_autoconnect)
+        self.item_setting_dns = gtk.CheckMenuItem(NordVPN.Settings.DNS.value)
+        self.item_setting_dns.connect('toggled', self.on_setting_update)
+        menu_settings.append(self.item_setting_dns)
+        self.update_settings_menu()
 
         menu.append(item_settings)
 
@@ -219,6 +215,18 @@ class Indicator(object):
         """
         setting = NordVPN.Settings(item.get_label())
         self.nordvpn.set_setting(setting, item.get_active())
+
+    def update_settings_menu(self):
+        """
+        Update the setting menu with the current configuration set in the client app
+        """
+        settings = self.nordvpn.get_settings()
+        self.item_setting_tcp.set_active(settings[NordVPN.Settings.PROTOCOL])
+        self.item_setting_kill.set_active(settings[NordVPN.Settings.KILL_SWITCH])
+        self.item_setting_cybersec.set_active(settings[NordVPN.Settings.CYBER_SEC])
+        self.item_setting_obfuscate.set_active(settings[NordVPN.Settings.OBFUSCATE])
+        self.item_setting_autoconnect.set_active(settings[NordVPN.Settings.AUTO_CONNECT])
+        self.item_setting_dns.set_active(settings[NordVPN.Settings.DNS])
 
 
 class NordVPN(object):
@@ -356,22 +364,18 @@ class NordVPN(object):
 
     def get_settings(self):
         """
-        Read the current settings from the client app and return them
+        Read the current settings from the client app and return them as dictionary
 
         Returns:
             - A dictionary {Setting:Value} where Setting is a instance of Settings Enum
         """
-        output = self.run_command('nordvpn settings')
-        print output.split()[1:]
-        # TODO parse the settings
-
         settings = {}
-        settings[NordVPN.Settings.PROTOCOL] = False
-        settings[NordVPN.Settings.KILL_SWITCH] = False
-        settings[NordVPN.Settings.CYBER_SEC] = False
-        settings[NordVPN.Settings.OBFUSCATE] = False
-        settings[NordVPN.Settings.AUTO_CONNECT] = False
-        settings[NordVPN.Settings.DNS] = False
+        output = self.run_command('nordvpn settings')
+        output = output.splitlines()[3:]
+        for setting in output:
+            key = setting.split(':')[0].strip()
+            value = setting.split(':')[1].strip()
+            settings[NordVPN.Settings(key)] = True if value == 'enabled' else False
         return settings
 
     def set_setting(self, setting, value):
@@ -382,17 +386,22 @@ class NordVPN(object):
             - setting: the setting to update (instance of NordVPN.Settings)
             - value: the value reflecting the current menu selection
         """
-        # TODO need to tweak the command for each setting
         label = setting.value.replace(' ','').lower()
-        print 'nordvpn set {} {}'.format(label, value)
+        if setting == NordVPN.Settings.PROTOCOL:
+            status = 'TCP' if value else 'UDP'
+        else:
+            status = value
+
+        print 'nordvpn set {} {}'.format(label, status)
         #self.run_command('nordvpn set {} {}'.format(label, value))
 
     class Settings(Enum):
         """
-        Represents the settings available for the nordvpn client
+        Represents the settings available for the nordvpn client.
+        Each value is the exact match of the setting name
         """
-        PROTOCOL = "TCP"
-        KILL_SWITCH = "Kill switch"
+        PROTOCOL = "Protocol"
+        KILL_SWITCH = "Kill Switch"
         CYBER_SEC = "CyberSec"
         OBFUSCATE = "Obfuscate"
         AUTO_CONNECT = "Auto connect"
