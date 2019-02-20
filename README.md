@@ -7,7 +7,7 @@ This repository allows for the installation of a Python script that adds an appl
 Run the installation script ```install.sh```
 > ./install.sh
 
-The package ```nordvpn``` will be installed. The python script is added as a startup application. During the installation process, NordVPN will ask for credentials. The status of the VPN is checked every 10 seconds. If no VPN connection is detected, the logo turns blue. When a VPN connection is established, the logo will become green. 
+If the package ```nordvpn``` is not found, it will be installed. The python script is added as a startup application. During the installation process, NordVPN will ask for credentials. The status of the VPN is checked every 10 seconds. If no VPN connection is detected, the logo turns blue. When a VPN connection is established, the logo will become green.
 
 ![alt text](https://raw.githubusercontent.com/yorickvanzweeden/Ubuntu-NordVPN-Indicator/master/code/nordvpn_disconnected.png "Disconnected logo")  ![alt text](https://raw.githubusercontent.com/yorickvanzweeden/Ubuntu-NordVPN-Indicator/master/code/nordvpn_connected.png "Connected logo")
 
