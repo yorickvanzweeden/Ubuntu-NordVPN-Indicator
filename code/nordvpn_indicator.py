@@ -269,7 +269,7 @@ class SettingsWindow(gtk.Window):
         combo_autoconnect.append('off', 'Off')
         combo_autoconnect.append('auto', 'Automatic')
         for c in self.nordvpn.get_countries():
-            name = c.replace('_','')
+            name = c.replace('_',' ')
             combo_autoconnect.append(name.lower(), name)
         combo_autoconnect.set_active_id('auto' if settings[NordVPN.Settings.AUTO_CONNECT] else 'off')
         combo_autoconnect.connect('changed', self.on_setting_update)
