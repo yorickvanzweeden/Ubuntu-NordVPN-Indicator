@@ -190,7 +190,7 @@ class Indicator(object):
         """
         Display a new window showing the settings of the NordVPN client app
         """
-        window = SettingsWindow(self.nordvpn.get_settings(), self.nordvpn.set_settings)
+        window = SettingsWindow(self.nordvpn)
         window.show_all()
 
 class SettingsWindow(gtk.Window):
@@ -202,9 +202,9 @@ class SettingsWindow(gtk.Window):
         - callback: function accepting 1 argument as the "settings" dict above. Callback
                     is called to save the settings
     """
-    def __init__(self, settings, callback):
+    def __init__(self, nordvpn):
         super(SettingsWindow, self).__init__()
-        self.callback = callback
+        self.nordvpn = nordvpn
         self.set_default_size(200,200)
         self.set_title('NordVPN settings')
         self.set_border_width(8)
@@ -212,12 +212,14 @@ class SettingsWindow(gtk.Window):
         self.set_default_icon_from_file(os.path.dirname(os.path.realpath(__file__)) + '/nordvpn_disconnected.png')
         self.set_focus()
         # Build window layout
-        self.add(self.create_widgets(settings))
+        self.add(self.create_widgets())
         # Create empty settings dict to update only settings
         # that change, and only if they change
         self.settings = {}
 
-    def create_widgets(self, settings):
+    def create_widgets(self):
+        settings = self.nordvpn.get_settings()
+
         m_vbox = gtk.VBox()
 
         row_one = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
@@ -264,10 +266,12 @@ class SettingsWindow(gtk.Window):
         row_five.add(gtk.Label(NordVPN.Settings.AUTO_CONNECT.value))
         combo_autoconnect = gtk.ComboBoxText()
         combo_autoconnect.set_property('name', NordVPN.Settings.AUTO_CONNECT.value)
-        combo_autoconnect.append('on', 'On')
         combo_autoconnect.append('off', 'Off')
-        # TODO add list of countries
-        combo_autoconnect.set_active_id('on' if settings[NordVPN.Settings.AUTO_CONNECT] else 'off')
+        combo_autoconnect.append('auto', 'Automatic')
+        for c in self.nordvpn.get_countries():
+            name = c.replace('_','')
+            combo_autoconnect.append(name.lower(), name)
+        combo_autoconnect.set_active_id('auto' if settings[NordVPN.Settings.AUTO_CONNECT] else 'off')
         combo_autoconnect.connect('changed', self.on_setting_update)
         row_five.add(combo_autoconnect)
 
@@ -319,8 +323,8 @@ class SettingsWindow(gtk.Window):
         """
         Save the selected settings and pass them through the result callback
         """
-        # Call the callback to actually set the settings
-        self.callback(self.settings)
+        # Call the function to actually set the settings
+        self.nordvpn.set_settings(self.settings)
         # Reset internal member to avoid set again the same settings
         self.settings = {}
 
@@ -337,7 +341,7 @@ class SettingsWindow(gtk.Window):
         elif widget.get_name() == NordVPN.Settings.OBFUSCATE.value:
             self.settings[NordVPN.Settings.OBFUSCATE] = (widget.get_active_text().lower() == 'on')
         elif widget.get_name() == NordVPN.Settings.AUTO_CONNECT.value:
-            self.settings[NordVPN.Settings.AUTO_CONNECT] = (widget.get_active_text().lower() == 'on')
+            self.settings[NordVPN.Settings.AUTO_CONNECT] = widget.get_active_text().replace(' ','_')
 
 class NordVPN(object):
     """
@@ -514,9 +518,15 @@ class NordVPN(object):
                         Settings will be updated only if their related key is in the dict
         """
         for key, value in settings.items():
-            if key == NordVPN.Settings.PROTOCOL:
-                status = 'TCP' if value else 'UDP'
-            self.run_command('nordvpn set {} {}'.format(key.value.replace(' ','').lower(), str(value).lower()))
+            setting = value
+            if key == NordVPN.Settings.AUTO_CONNECT:
+                if value == 'Off':
+                    setting = False
+                elif value == 'Automatic':
+                    setting = True
+                else:
+                    setting = 'on {}'.format(value.lower())
+            self.run_command('nordvpn set {} {}'.format(key.value.replace(' ','').lower(), str(setting).lower()))
 
 
 def main():
