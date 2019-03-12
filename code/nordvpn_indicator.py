@@ -115,7 +115,7 @@ class Indicator(object):
         item_connect_country = gtk.MenuItem('Countries')
         item_connect_country.set_submenu(countries_menu)
         for c in countries:
-            item = gtk.MenuItem(c)
+            item = gtk.MenuItem(c.replace('_',' '))
             item.connect('activate', self.country_connect_cb)
             countries_menu.append(item)
         menu_connect.append(item_connect_country)
@@ -140,6 +140,11 @@ class Indicator(object):
         self.status_label.set_sensitive(False)
 
         menu.append(item_status)
+
+        # Define the Settings menu entry
+        item_settings = gtk.MenuItem('Settings...')
+        item_settings.connect('activate', self.display_settings_window)
+        menu.append(item_settings)
 
         item_quit = gtk.MenuItem('Quit')
         item_quit.connect('activate', self.quit)
@@ -181,6 +186,162 @@ class Indicator(object):
         """
         notify.Notification.new("NordVPN", message, None).show()
 
+    def display_settings_window(self, widget):
+        """
+        Display a new window showing the settings of the NordVPN client app
+        """
+        window = SettingsWindow(self.nordvpn)
+        window.show_all()
+
+class SettingsWindow(gtk.Window):
+    """
+    GTK window widget to display NordVPN settings
+
+    Args:
+        - settings: dict {NordVPN.Settings:value} representing the configuration to display
+        - callback: function accepting 1 argument as the "settings" dict above. Callback
+                    is called to save the settings
+    """
+    def __init__(self, nordvpn):
+        super(SettingsWindow, self).__init__()
+        self.nordvpn = nordvpn
+        self.set_default_size(200,200)
+        self.set_title('NordVPN settings')
+        self.set_border_width(8)
+        #self.set_position(WIN_POS_CENTER)
+        self.set_default_icon_from_file(os.path.dirname(os.path.realpath(__file__)) + '/nordvpn_disconnected.png')
+        self.set_focus()
+        # Build window layout
+        self.add(self.create_widgets())
+        # Create empty settings dict to update only settings
+        # that change, and only if they change
+        self.settings = {}
+
+    def create_widgets(self):
+        settings = self.nordvpn.get_settings()
+
+        m_vbox = gtk.VBox()
+
+        row_one = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_one.add(gtk.Label(NordVPN.Settings.PROTOCOL.value))
+        combo_protocol = gtk.ComboBoxText()
+        combo_protocol.set_property('name', NordVPN.Settings.PROTOCOL.value)
+        combo_protocol.append('udp', 'UDP') # id and string
+        combo_protocol.append('tcp', 'TCP')
+        combo_protocol.set_active_id('tcp' if settings[NordVPN.Settings.PROTOCOL] else 'udp')
+        combo_protocol.connect('changed', self.on_setting_update)
+        row_one.add(combo_protocol)
+
+        row_two = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_two.add(gtk.Label(NordVPN.Settings.KILL_SWITCH.value))
+        combo_kill = gtk.ComboBoxText()
+        combo_kill.set_property('name', NordVPN.Settings.KILL_SWITCH.value)
+        combo_kill.append('on', 'On')
+        combo_kill.append('off', 'Off')
+        combo_kill.set_active_id('on' if settings[NordVPN.Settings.KILL_SWITCH] else 'off')
+        combo_kill.connect('changed', self.on_setting_update)
+        row_two.add(combo_kill)
+
+        row_three = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_three.add(gtk.Label(NordVPN.Settings.CYBER_SEC.value))
+        combo_cybersec = gtk.ComboBoxText()
+        combo_cybersec.set_property('name', NordVPN.Settings.CYBER_SEC.value)
+        combo_cybersec.append('on', 'On')
+        combo_cybersec.append('off', 'Off')
+        combo_cybersec.set_active_id('on' if settings[NordVPN.Settings.CYBER_SEC] else 'off')
+        combo_cybersec.connect('changed', self.on_setting_update)
+        row_three.add(combo_cybersec)
+
+        row_four = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_four.add(gtk.Label(NordVPN.Settings.OBFUSCATE.value))
+        combo_obfuscate = gtk.ComboBoxText()
+        combo_obfuscate.set_property('name', NordVPN.Settings.OBFUSCATE.value)
+        combo_obfuscate.append('on', 'On')
+        combo_obfuscate.append('off', 'Off')
+        combo_obfuscate.set_active_id('on' if settings[NordVPN.Settings.OBFUSCATE] else 'off')
+        combo_obfuscate.connect('changed', self.on_setting_update)
+        row_four.add(combo_obfuscate)
+
+        row_five = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_five.add(gtk.Label(NordVPN.Settings.AUTO_CONNECT.value))
+        combo_autoconnect = gtk.ComboBoxText()
+        combo_autoconnect.set_property('name', NordVPN.Settings.AUTO_CONNECT.value)
+        combo_autoconnect.append('off', 'Off')
+        combo_autoconnect.append('auto', 'Automatic')
+        for c in self.nordvpn.get_countries():
+            name = c.replace('_',' ')
+            combo_autoconnect.append(name.lower(), name)
+        combo_autoconnect.set_active_id('auto' if settings[NordVPN.Settings.AUTO_CONNECT] else 'off')
+        combo_autoconnect.connect('changed', self.on_setting_update)
+        row_five.add(combo_autoconnect)
+
+        # FIXME The DNS setting widget is not used at the moment
+        row_six = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.FILL)
+        check_dns = gtk.CheckButton(NordVPN.Settings.DNS.value)
+        row_six.add(check_dns)
+        dns_vbox = gtk.VBox(valign=gtk.Align.END)
+        entry_dns_one = gtk.Entry()
+        entry_dns_one.set_placeholder_text('IP address...')
+        dns_vbox.add(entry_dns_one)
+        entry_dns_two = gtk.Entry()
+        entry_dns_two.set_placeholder_text('IP address...')
+        dns_vbox.add(entry_dns_two)
+        entry_dns_three = gtk.Entry()
+        entry_dns_three.set_placeholder_text('IP address...')
+        dns_vbox.add(entry_dns_three)
+        dns_vbox.set_sensitive(False)
+        row_six.add(dns_vbox)
+
+        row_seven = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.END)
+        row_seven.add(gtk.Label())
+
+        row_eight = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.END)
+        button_apply = gtk.Button('Apply')
+        button_apply.connect('clicked', self.on_apply)
+        button_close = gtk.Button('Close')
+        button_close.connect('clicked', self.on_close)
+        row_eight.add(button_close)
+        row_eight.add(button_apply)
+
+        m_vbox.pack_start(row_one, True, False, 0)
+        m_vbox.pack_start(row_two, True, False, 0)
+        m_vbox.pack_start(row_three, True, False, 0)
+        m_vbox.pack_start(row_four, True, False, 0)
+        m_vbox.pack_start(row_five, True, False, 0)
+        m_vbox.pack_start(row_six, True, False, 0)
+        m_vbox.pack_start(row_seven, True, False, 0)
+        m_vbox.pack_start(row_eight, True, False, 0)
+        return m_vbox
+
+    def on_close(self, widget):
+        """
+        Close the settings window
+        """
+        self.destroy()
+
+    def on_apply(self, widget):
+        """
+        Save the selected settings and pass them through the result callback
+        """
+        # Call the function to actually set the settings
+        self.nordvpn.set_settings(self.settings)
+        # Reset internal member to avoid set again the same settings
+        self.settings = {}
+
+    def on_setting_update(self, widget):
+        """
+        Callback to handle a selection from the settings widgets
+        """
+        if widget.get_name() == NordVPN.Settings.PROTOCOL.value:
+            self.settings[NordVPN.Settings.PROTOCOL] = widget.get_active_text()
+        elif widget.get_name() == NordVPN.Settings.KILL_SWITCH.value:
+            self.settings[NordVPN.Settings.KILL_SWITCH] = (widget.get_active_text().lower() == 'on')
+        elif widget.get_name() == NordVPN.Settings.CYBER_SEC.value:
+            self.settings[NordVPN.Settings.CYBER_SEC] = (widget.get_active_text().lower() == 'on')
+        elif widget.get_name() == NordVPN.Settings.OBFUSCATE.value:
+            self.settings[NordVPN.Settings.OBFUSCATE] = (widget.get_active_text().lower() == 'on')
+        elif widget.get_name() == NordVPN.Settings.AUTO_CONNECT.value:
+            self.settings[NordVPN.Settings.AUTO_CONNECT] = widget.get_active_text().replace(' ','_')
 
 class NordVPN(object):
     """
@@ -193,6 +354,19 @@ class NordVPN(object):
     Returns:
         Instance of Indicator class
     """
+
+    class Settings(Enum):
+        """
+        Represents the settings available for the nordvpn client.
+        Each value is the exact match of the setting name
+        """
+        PROTOCOL = "Protocol"
+        KILL_SWITCH = "Kill Switch"
+        CYBER_SEC = "CyberSec"
+        OBFUSCATE = "Obfuscate"
+        AUTO_CONNECT = "Auto connect"
+        DNS = "DNS"
+
     def __init__(self):
         self.indicator = None
         self.connected = VPN_STATUS.WAITING
@@ -314,6 +488,45 @@ class NordVPN(object):
         country_list.sort()
         return country_list
         #return countries.split(' ')[2].split().sort()
+
+    def get_settings(self):
+        """
+        Read the current settings from the client app and return them as dictionary
+
+        Returns:
+            - A dictionary {Setting:Value} where Setting is a instance of Settings Enum
+        """
+        settings = {}
+        output = self.run_command('nordvpn settings')
+        output = output.splitlines()[3:]
+        for setting in output:
+            key = setting.split(':')[0].strip()
+            value = setting.split(':')[1].strip()
+
+            if key == NordVPN.Settings.PROTOCOL.value:
+                value = 'enabled' if value == 'TCP' else 'disabled'
+
+            settings[NordVPN.Settings(key)] = True if value == 'enabled' else False
+        return settings
+
+    def set_settings(self, settings):
+        """
+        Handle the update of nord vpn settings from the indicator app
+
+        Args:
+            - settings: a dict {NordVPN.Settings : value} representing settings to set.
+                        Settings will be updated only if their related key is in the dict
+        """
+        for key, value in settings.items():
+            setting = value
+            if key == NordVPN.Settings.AUTO_CONNECT:
+                if value == 'Off':
+                    setting = False
+                elif value == 'Automatic':
+                    setting = True
+                else:
+                    setting = 'on {}'.format(value.lower())
+            self.run_command('nordvpn set {} {}'.format(key.value.replace(' ','').lower(), str(setting).lower()))
 
 
 def main():
