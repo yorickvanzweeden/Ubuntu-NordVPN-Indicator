@@ -498,10 +498,10 @@ class NordVPN(object):
         countries = self.run_command('nordvpn countries')
         if countries is None:
             return []
-        country_list = ''.join(countries).split(' ')[2].split()
+        #country_list = ''.join(countries).split(' ')[2].split()
+        country_list = [c.replace(',','') for c in ''.join(countries).split()[1:]]
         country_list.sort()
         return country_list
-        #return countries.split(' ')[2].split().sort()
 
     def get_settings(self):
         """
