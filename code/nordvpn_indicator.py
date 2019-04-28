@@ -406,7 +406,6 @@ class NordVPN(object):
         Returns:
             Output of the bash command
         """
-        print(command)
         process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
         if error is not None:
