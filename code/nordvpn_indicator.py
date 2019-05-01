@@ -17,7 +17,7 @@ from gi.repository import Gtk as gtk
 from gi.repository import AppIndicator3 as appindicator
 from gi.repository import Notify as notify
 
-from nordvpn import NordVPN, ConnectionStatus, Settings
+from nordvpn import NordVPN, ConnectionStatus, Settings, NordVPNStatus
 
 
 APPINDICATOR_ID = 'nordvpn_tray_icon'
@@ -43,7 +43,7 @@ class Indicator(object):
         # Add indicator
         self.indicator = appindicator.Indicator.new(
             APPINDICATOR_ID,
-            self.get_icon_path(None),
+            self.get_icon_path(ConnectionStatus.WAITING),
             appindicator.IndicatorCategory.SYSTEM_SERVICES)
         self.indicator.set_status(appindicator.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
@@ -66,10 +66,9 @@ class Indicator(object):
         """
         Updates the icon and the menu status item
         """
-        self.nordvpn.status_check(None)
         status = self.nordvpn.get_status()
         self.status_label.set_label(status.raw_status)
-        self.indicator.set_icon(self.get_icon_path(status.connection_status))
+        self.indicator.set_icon(self.get_icon_path(status.data[NordVPNStatus.Param.STATUS]))
 
     @staticmethod
     def get_icon_path(connected):
@@ -125,9 +124,9 @@ class Indicator(object):
         item_status.set_submenu(menu_status)
 
         # First item is to refresh the status
-        item_refresh = gtk.MenuItem('Refresh')
-        item_refresh.connect('activate', self.nordvpn.status_check)
-        menu_status.append(item_refresh)
+        # item_refresh = gtk.MenuItem('Refresh')
+        # item_refresh.connect('activate', self.nordvpn.status_check)
+        # menu_status.append(item_refresh)
 
         # Add a label to show the current status details
         self.status_label = gtk.MenuItem('')

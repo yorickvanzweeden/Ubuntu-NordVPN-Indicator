@@ -10,9 +10,9 @@ class ConnectionStatus(Enum):
     """
     Connection status to the VPN
     """
-    CONNECTED = 0
-    DISCONNECTED = 1
-    WAITING = 2
+    CONNECTED = 'Connected'
+    DISCONNECTED = 'Disconnected'
+    WAITING = 'Connecting'
 
 
 class Settings(Enum):
@@ -34,30 +34,51 @@ class NordVPNStatus():
     Status of the NordVPN client app
     """
 
+    class Param(Enum):
+        """
+        Parameters that compose the client app status
+        """
+        STATUS = 'Status'
+        CURRENT_SERVER = 'Current server'
+        COUNTRY = 'Country'
+        CITY = 'City'
+        IP = 'Your new IP'
+        PROTOCOL = 'Current protocol'
+        TRANSFER = 'Transfer'
+        UPTIME = 'Uptime'
+
     def __init__(self):
         self.raw_status = 'Unknown'
-        self.connection_status = ConnectionStatus.WAITING
-        self.server = 'Unknown'
-        self.country = 'Unknown'
-        self.city = 'Unknown'
-        self.IP = '0.0.0.0'
-        self.protocol = 'Unknown'
-        self.transfer = 'Unknown'
-        self.uptime = 'Unknown'
+        self.data = {
+            NordVPNStatus.Param.STATUS: ConnectionStatus.WAITING,
+            NordVPNStatus.Param.CURRENT_SERVER: 'Unknown',
+            NordVPNStatus.Param.COUNTRY: 'Unknown',
+            NordVPNStatus.Param.CITY: 'Unknown',
+            NordVPNStatus.Param.IP: 'Unknown',
+            NordVPNStatus.Param.PROTOCOL: 'Unknown',
+            NordVPNStatus.Param.TRANSFER: 'Unknown',
+            NordVPNStatus.Param.UPTIME: 'Unknown'
+        }
 
     def update(self, raw_status):
+        # Save the raw status string
         self.raw_status = raw_status
-        # TODO parse the string and assign internal members
-        matches = re.search(r'(([0-9])+\.){3}([0-9]+)', raw_status)
-        if matches is not None:
-            self.IP = matches.group(0)
-            self.connection_status = ConnectionStatus.DISCONNECTED if self.IP is None else ConnectionStatus.CONNECTED
-        self.server = 'Unknown'
-        self.country = 'Unknown'
-        self.city = 'Unknown'
-        self.protocol = 'Unknown'
-        self.transfer = 'Unknown'
-        self.uptime = 'Unknown'
+        # Group status values
+        try:
+            values = raw_status.split('\n')
+            for v in values:
+                # Parse status key and value
+                key = v.split(':')[0].strip()
+                value = v.split(':')[1].strip()
+
+                # Special parsing for connection status as it's not a string
+                if key == NordVPNStatus.Param.STATUS.value:
+                    value = ConnectionStatus(value)
+
+                # Update the status parameter in the dict member
+                self.data[NordVPNStatus.Param(key)] = value
+        except Exception as e:
+            self.data[NordVPNStatus.Param.STATUS] = ConnectionStatus.WAITING
 
 
 class NordVPN(object):
@@ -118,7 +139,7 @@ class NordVPN(object):
         Args:
             country: Country name as string
         """
-        output = self.run_command("nordvpn connect {}".format(country))
+        output = self.run_command("nordvpn connect {}".format(country.replace(' ','_')))
 
     def disconnect(self, _):
         """
@@ -129,7 +150,7 @@ class NordVPN(object):
         """
         output = self.run_command("nordvpn disconnect")
 
-    def status_check(self, _):
+    def status_check(self):
         """
         Checks if an IP is outputted by the NordVPN status command
 
@@ -145,6 +166,7 @@ class NordVPN(object):
         """
         Returns the current status of the VPN connection as a string
         """
+        self.status_check()
         return self.status
 
     def get_countries(self):
