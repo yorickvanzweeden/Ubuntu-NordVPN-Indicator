@@ -3,9 +3,9 @@
 
 import re
 import subprocess
-from enum import Enum
+from enum import Enum, unique
 
-
+@unique
 class ConnectionStatus(Enum):
     """
     Connection status to the VPN
@@ -14,7 +14,7 @@ class ConnectionStatus(Enum):
     DISCONNECTED = 'Disconnected'
     WAITING = 'Connecting'
 
-
+@unique
 class Settings(Enum):
     """
     Represents the settings available for the NordVPN client application.
@@ -33,7 +33,7 @@ class NordVPNStatus():
     """
     Status of the NordVPN client app
     """
-
+    @unique
     class Param(Enum):
         """
         Parameters that compose the client app status

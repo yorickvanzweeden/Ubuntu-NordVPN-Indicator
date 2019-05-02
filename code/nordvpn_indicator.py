@@ -123,11 +123,6 @@ class Indicator(object):
         item_status = gtk.MenuItem('Status')
         item_status.set_submenu(menu_status)
 
-        # First item is to refresh the status
-        # item_refresh = gtk.MenuItem('Refresh')
-        # item_refresh.connect('activate', self.nordvpn.status_check)
-        # menu_status.append(item_refresh)
-
         # Add a label to show the current status details
         self.status_label = gtk.MenuItem('')
         menu_status.append(self.status_label)
