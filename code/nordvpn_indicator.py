@@ -222,48 +222,58 @@ class SettingsWindow(gtk.Window):
 
         m_vbox = gtk.VBox()
 
-        row_one = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_one.add(gtk.Label(NordVPN.Settings.PROTOCOL.value))
+        row_protocol = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_protocol.add(gtk.Label(NordVPN.Settings.PROTOCOL.value))
         combo_protocol = gtk.ComboBoxText()
         combo_protocol.set_property('name', NordVPN.Settings.PROTOCOL.value)
         combo_protocol.append('udp', 'UDP') # id and string
         combo_protocol.append('tcp', 'TCP')
         combo_protocol.set_active_id('tcp' if settings[NordVPN.Settings.PROTOCOL] else 'udp')
         combo_protocol.connect('changed', self.on_setting_update)
-        row_one.add(combo_protocol)
+        row_protocol.add(combo_protocol)
 
-        row_two = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_two.add(gtk.Label(NordVPN.Settings.KILL_SWITCH.value))
+        row_kill_switch = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_kill_switch.add(gtk.Label(NordVPN.Settings.KILL_SWITCH.value))
         combo_kill = gtk.ComboBoxText()
         combo_kill.set_property('name', NordVPN.Settings.KILL_SWITCH.value)
         combo_kill.append('on', 'On')
         combo_kill.append('off', 'Off')
         combo_kill.set_active_id('on' if settings[NordVPN.Settings.KILL_SWITCH] else 'off')
         combo_kill.connect('changed', self.on_setting_update)
-        row_two.add(combo_kill)
+        row_kill_switch.add(combo_kill)
 
-        row_three = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_three.add(gtk.Label(NordVPN.Settings.CYBER_SEC.value))
+        row_cybersec = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_cybersec.add(gtk.Label(NordVPN.Settings.CYBER_SEC.value))
         combo_cybersec = gtk.ComboBoxText()
         combo_cybersec.set_property('name', NordVPN.Settings.CYBER_SEC.value)
         combo_cybersec.append('on', 'On')
         combo_cybersec.append('off', 'Off')
         combo_cybersec.set_active_id('on' if settings[NordVPN.Settings.CYBER_SEC] else 'off')
         combo_cybersec.connect('changed', self.on_setting_update)
-        row_three.add(combo_cybersec)
+        row_cybersec.add(combo_cybersec)
 
-        row_four = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_four.add(gtk.Label(NordVPN.Settings.OBFUSCATE.value))
+        row_obfuscate = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_obfuscate.add(gtk.Label(NordVPN.Settings.OBFUSCATE.value))
         combo_obfuscate = gtk.ComboBoxText()
         combo_obfuscate.set_property('name', NordVPN.Settings.OBFUSCATE.value)
         combo_obfuscate.append('on', 'On')
         combo_obfuscate.append('off', 'Off')
         combo_obfuscate.set_active_id('on' if settings[NordVPN.Settings.OBFUSCATE] else 'off')
         combo_obfuscate.connect('changed', self.on_setting_update)
-        row_four.add(combo_obfuscate)
+        row_obfuscate.add(combo_obfuscate)
 
-        row_five = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_five.add(gtk.Label(NordVPN.Settings.AUTO_CONNECT.value))
+        row_notify = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_notify.add(gtk.Label(NordVPN.Settings.NOTIFY.value))
+        combo_notify = gtk.ComboBoxText()
+        combo_notify.set_property('name', NordVPN.Settings.NOTIFY.value)
+        combo_notify.append('on', 'On')
+        combo_notify.append('off', 'Off')
+        combo_notify.set_active_id('on' if settings[NordVPN.Settings.NOTIFY] else 'off')
+        combo_notify.connect('changed', self.on_setting_update)
+        row_notify.add(combo_notify)
+
+        row_autoconnect = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
+        row_autoconnect.add(gtk.Label(NordVPN.Settings.AUTO_CONNECT.value))
         combo_autoconnect = gtk.ComboBoxText()
         combo_autoconnect.set_property('name', NordVPN.Settings.AUTO_CONNECT.value)
         combo_autoconnect.append('off', 'Off')
@@ -273,12 +283,12 @@ class SettingsWindow(gtk.Window):
             combo_autoconnect.append(name.lower(), name)
         combo_autoconnect.set_active_id('auto' if settings[NordVPN.Settings.AUTO_CONNECT] else 'off')
         combo_autoconnect.connect('changed', self.on_setting_update)
-        row_five.add(combo_autoconnect)
+        row_autoconnect.add(combo_autoconnect)
 
         # FIXME The DNS setting widget is not used at the moment
-        row_six = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.FILL)
+        row_dns = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.FILL)
         check_dns = gtk.CheckButton(NordVPN.Settings.DNS.value)
-        row_six.add(check_dns)
+        row_dns.add(check_dns)
         dns_vbox = gtk.VBox(valign=gtk.Align.END)
         entry_dns_one = gtk.Entry()
         entry_dns_one.set_placeholder_text('IP address...')
@@ -290,27 +300,28 @@ class SettingsWindow(gtk.Window):
         entry_dns_three.set_placeholder_text('IP address...')
         dns_vbox.add(entry_dns_three)
         dns_vbox.set_sensitive(False)
-        row_six.add(dns_vbox)
+        row_dns.add(dns_vbox)
 
-        row_seven = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.END)
-        row_seven.add(gtk.Label())
+        row_blank = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.END)
+        row_blank.add(gtk.Label())
 
-        row_eight = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.END)
+        row_buttons = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.END)
         button_apply = gtk.Button('Apply')
         button_apply.connect('clicked', self.on_apply)
         button_close = gtk.Button('Close')
         button_close.connect('clicked', self.on_close)
-        row_eight.add(button_close)
-        row_eight.add(button_apply)
+        row_buttons.add(button_close)
+        row_buttons.add(button_apply)
 
-        m_vbox.pack_start(row_one, True, False, 0)
-        m_vbox.pack_start(row_two, True, False, 0)
-        m_vbox.pack_start(row_three, True, False, 0)
-        m_vbox.pack_start(row_four, True, False, 0)
-        m_vbox.pack_start(row_five, True, False, 0)
-        m_vbox.pack_start(row_six, True, False, 0)
-        m_vbox.pack_start(row_seven, True, False, 0)
-        m_vbox.pack_start(row_eight, True, False, 0)
+        m_vbox.pack_start(row_protocol, True, False, 0)
+        m_vbox.pack_start(row_kill_switch, True, False, 0)
+        m_vbox.pack_start(row_cybersec, True, False, 0)
+        m_vbox.pack_start(row_obfuscate, True, False, 0)
+        m_vbox.pack_start(row_notify, True, False, 0)
+        m_vbox.pack_start(row_autoconnect, True, False, 0)
+        m_vbox.pack_start(row_dns, True, False, 0)
+        m_vbox.pack_start(row_blank, True, False, 0)
+        m_vbox.pack_start(row_buttons, True, False, 0)
         return m_vbox
 
     def on_close(self, widget):
@@ -342,6 +353,8 @@ class SettingsWindow(gtk.Window):
             self.settings[NordVPN.Settings.OBFUSCATE] = (widget.get_active_text().lower() == 'on')
         elif widget.get_name() == NordVPN.Settings.AUTO_CONNECT.value:
             self.settings[NordVPN.Settings.AUTO_CONNECT] = widget.get_active_text().replace(' ','_')
+        elif widget.get_name() == NordVPN.Settings.NOTIFY.value:
+            self.settings[NordVPN.Settings.NOTIFY] = (widget.get_active_text().lower() == 'on')
 
 class NordVPN(object):
     """
@@ -364,8 +377,9 @@ class NordVPN(object):
         KILL_SWITCH = "Kill Switch"
         CYBER_SEC = "CyberSec"
         OBFUSCATE = "Obfuscate"
-        AUTO_CONNECT = "Auto connect"
+        AUTO_CONNECT = "Auto-connect"
         DNS = "DNS"
+        NOTIFY = "Notify"
 
     def __init__(self):
         self.indicator = None
