@@ -36,7 +36,7 @@ install_indicator()
     # Installing indicator in opt directory
     echo Installing Ubuntu NordVPN Indicator
     sudo mkdir -p /opt/ubuntu-nordvpn-indicator/
-    sudo cp code/nordvpn_* /opt/ubuntu-nordvpn-indicator/
+    sudo cp code/* /opt/ubuntu-nordvpn-indicator/
 
     # Installing autostart desktop file
     echo Making sure the indicator starts at boot using autostart

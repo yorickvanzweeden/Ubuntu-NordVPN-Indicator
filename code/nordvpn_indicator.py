@@ -5,9 +5,7 @@ and disconnecting to NordVPN
 """
 
 import os
-import re
 import signal
-import subprocess
 import threading
 import gi
 
@@ -18,16 +16,12 @@ gi.require_version('Notify', '0.7')
 from gi.repository import Gtk as gtk
 from gi.repository import AppIndicator3 as appindicator
 from gi.repository import Notify as notify
-from enum import Enum
+
+from nordvpn import NordVPN, ConnectionStatus, Settings, NordVPNStatus
 
 
 APPINDICATOR_ID = 'nordvpn_tray_icon'
 TIMER_SECONDS = 5.0
-
-class VPN_STATUS(Enum):
-    CONNECTED = 0
-    DISCONNECTED = 1
-    WAITING = 2
 
 class Indicator(object):
     """
@@ -49,7 +43,7 @@ class Indicator(object):
         # Add indicator
         self.indicator = appindicator.Indicator.new(
             APPINDICATOR_ID,
-            self.get_icon_path(False),
+            self.get_icon_path(ConnectionStatus.WAITING),
             appindicator.IndicatorCategory.SYSTEM_SERVICES)
         self.indicator.set_status(appindicator.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
@@ -72,9 +66,9 @@ class Indicator(object):
         """
         Updates the icon and the menu status item
         """
-        self.nordvpn.status_check(None)
-        self.status_label.set_label(self.nordvpn.get_status())
-        self.indicator.set_icon(self.get_icon_path(self.nordvpn.is_connected()))
+        status = self.nordvpn.get_status()
+        self.status_label.set_label(status.raw_status)
+        self.indicator.set_icon(self.get_icon_path(status.data[NordVPNStatus.Param.STATUS]))
 
     @staticmethod
     def get_icon_path(connected):
@@ -82,11 +76,11 @@ class Indicator(object):
         Returns the correct icon in response to the connection status
 
         Args:
-            connected: Connected status VPN_STATUS object
+            connected: Connected status ConnectionStatus object
         """
-        if connected == VPN_STATUS.CONNECTED:
+        if connected == ConnectionStatus.CONNECTED:
             filename = 'nordvpn_connected.png'
-        elif connected == VPN_STATUS.DISCONNECTED:
+        elif connected == ConnectionStatus.DISCONNECTED:
             filename = 'nordvpn_disconnected.png'
         else:
             filename = 'nordvpn_waiting.png'
@@ -128,11 +122,6 @@ class Indicator(object):
         menu_status = gtk.Menu()
         item_status = gtk.MenuItem('Status')
         item_status.set_submenu(menu_status)
-
-        # First item is to refresh the status
-        item_refresh = gtk.MenuItem('Refresh')
-        item_refresh.connect('activate', self.nordvpn.status_check)
-        menu_status.append(item_refresh)
 
         # Add a label to show the current status details
         self.status_label = gtk.MenuItem('')
@@ -198,7 +187,7 @@ class SettingsWindow(gtk.Window):
     GTK window widget to display NordVPN settings
 
     Args:
-        - settings: dict {NordVPN.Settings:value} representing the configuration to display
+        - settings: dict {Settings:value} representing the configuration to display
         - callback: function accepting 1 argument as the "settings" dict above. Callback
                     is called to save the settings
     """
@@ -223,71 +212,71 @@ class SettingsWindow(gtk.Window):
         m_vbox = gtk.VBox()
 
         row_protocol = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_protocol.add(gtk.Label(NordVPN.Settings.PROTOCOL.value))
+        row_protocol.add(gtk.Label(Settings.PROTOCOL.value))
         combo_protocol = gtk.ComboBoxText()
-        combo_protocol.set_property('name', NordVPN.Settings.PROTOCOL.value)
+        combo_protocol.set_property('name', Settings.PROTOCOL.value)
         combo_protocol.append('udp', 'UDP') # id and string
         combo_protocol.append('tcp', 'TCP')
-        combo_protocol.set_active_id('tcp' if settings[NordVPN.Settings.PROTOCOL] else 'udp')
+        combo_protocol.set_active_id('tcp' if settings[Settings.PROTOCOL] else 'udp')
         combo_protocol.connect('changed', self.on_setting_update)
         row_protocol.add(combo_protocol)
 
         row_kill_switch = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_kill_switch.add(gtk.Label(NordVPN.Settings.KILL_SWITCH.value))
+        row_kill_switch.add(gtk.Label(Settings.KILL_SWITCH.value))
         combo_kill = gtk.ComboBoxText()
-        combo_kill.set_property('name', NordVPN.Settings.KILL_SWITCH.value)
+        combo_kill.set_property('name', Settings.KILL_SWITCH.value)
         combo_kill.append('on', 'On')
         combo_kill.append('off', 'Off')
-        combo_kill.set_active_id('on' if settings[NordVPN.Settings.KILL_SWITCH] else 'off')
+        combo_kill.set_active_id('on' if settings[Settings.KILL_SWITCH] else 'off')
         combo_kill.connect('changed', self.on_setting_update)
         row_kill_switch.add(combo_kill)
 
         row_cybersec = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_cybersec.add(gtk.Label(NordVPN.Settings.CYBER_SEC.value))
+        row_cybersec.add(gtk.Label(Settings.CYBER_SEC.value))
         combo_cybersec = gtk.ComboBoxText()
-        combo_cybersec.set_property('name', NordVPN.Settings.CYBER_SEC.value)
+        combo_cybersec.set_property('name', Settings.CYBER_SEC.value)
         combo_cybersec.append('on', 'On')
         combo_cybersec.append('off', 'Off')
-        combo_cybersec.set_active_id('on' if settings[NordVPN.Settings.CYBER_SEC] else 'off')
+        combo_cybersec.set_active_id('on' if settings[Settings.CYBER_SEC] else 'off')
         combo_cybersec.connect('changed', self.on_setting_update)
         row_cybersec.add(combo_cybersec)
 
         row_obfuscate = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_obfuscate.add(gtk.Label(NordVPN.Settings.OBFUSCATE.value))
+        row_obfuscate.add(gtk.Label(Settings.OBFUSCATE.value))
         combo_obfuscate = gtk.ComboBoxText()
-        combo_obfuscate.set_property('name', NordVPN.Settings.OBFUSCATE.value)
+        combo_obfuscate.set_property('name', Settings.OBFUSCATE.value)
         combo_obfuscate.append('on', 'On')
         combo_obfuscate.append('off', 'Off')
-        combo_obfuscate.set_active_id('on' if settings[NordVPN.Settings.OBFUSCATE] else 'off')
+        combo_obfuscate.set_active_id('on' if settings[Settings.OBFUSCATE] else 'off')
         combo_obfuscate.connect('changed', self.on_setting_update)
         row_obfuscate.add(combo_obfuscate)
 
         row_notify = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_notify.add(gtk.Label(NordVPN.Settings.NOTIFY.value))
+        row_notify.add(gtk.Label(Settings.NOTIFY.value))
         combo_notify = gtk.ComboBoxText()
-        combo_notify.set_property('name', NordVPN.Settings.NOTIFY.value)
+        combo_notify.set_property('name', Settings.NOTIFY.value)
         combo_notify.append('on', 'On')
         combo_notify.append('off', 'Off')
-        combo_notify.set_active_id('on' if settings[NordVPN.Settings.NOTIFY] else 'off')
+        combo_notify.set_active_id('on' if settings[Settings.NOTIFY] else 'off')
         combo_notify.connect('changed', self.on_setting_update)
         row_notify.add(combo_notify)
 
         row_autoconnect = gtk.Box(gtk.Orientation.HORIZONTAL, 4)
-        row_autoconnect.add(gtk.Label(NordVPN.Settings.AUTO_CONNECT.value))
+        row_autoconnect.add(gtk.Label(Settings.AUTO_CONNECT.value))
         combo_autoconnect = gtk.ComboBoxText()
-        combo_autoconnect.set_property('name', NordVPN.Settings.AUTO_CONNECT.value)
+        combo_autoconnect.set_property('name', Settings.AUTO_CONNECT.value)
         combo_autoconnect.append('off', 'Off')
         combo_autoconnect.append('auto', 'Automatic')
         for c in self.nordvpn.get_countries():
             name = c.replace('_',' ')
             combo_autoconnect.append(name.lower(), name)
-        combo_autoconnect.set_active_id('auto' if settings[NordVPN.Settings.AUTO_CONNECT] else 'off')
+        combo_autoconnect.set_active_id('auto' if settings[Settings.AUTO_CONNECT] else 'off')
         combo_autoconnect.connect('changed', self.on_setting_update)
         row_autoconnect.add(combo_autoconnect)
 
         # FIXME The DNS setting widget is not used at the moment
         row_dns = gtk.Box(gtk.Orientation.HORIZONTAL, 4, halign=gtk.Align.FILL)
-        check_dns = gtk.CheckButton(NordVPN.Settings.DNS.value)
+        check_dns = gtk.CheckButton(Settings.DNS.value)
         row_dns.add(check_dns)
         dns_vbox = gtk.VBox(valign=gtk.Align.END)
         entry_dns_one = gtk.Entry()
@@ -343,205 +332,18 @@ class SettingsWindow(gtk.Window):
         """
         Callback to handle a selection from the settings widgets
         """
-        if widget.get_name() == NordVPN.Settings.PROTOCOL.value:
-            self.settings[NordVPN.Settings.PROTOCOL] = widget.get_active_text()
-        elif widget.get_name() == NordVPN.Settings.KILL_SWITCH.value:
-            self.settings[NordVPN.Settings.KILL_SWITCH] = (widget.get_active_text().lower() == 'on')
-        elif widget.get_name() == NordVPN.Settings.CYBER_SEC.value:
-            self.settings[NordVPN.Settings.CYBER_SEC] = (widget.get_active_text().lower() == 'on')
-        elif widget.get_name() == NordVPN.Settings.OBFUSCATE.value:
-            self.settings[NordVPN.Settings.OBFUSCATE] = (widget.get_active_text().lower() == 'on')
-        elif widget.get_name() == NordVPN.Settings.AUTO_CONNECT.value:
-            self.settings[NordVPN.Settings.AUTO_CONNECT] = widget.get_active_text().replace(' ','_')
-        elif widget.get_name() == NordVPN.Settings.NOTIFY.value:
-            self.settings[NordVPN.Settings.NOTIFY] = (widget.get_active_text().lower() == 'on')
-
-class NordVPN(object):
-    """
-    NordVPN
-
-    Args:
-        nordvpn: Nordvpn instance for connecting/disconnecting and
-        checking the status of the connection
-
-    Returns:
-        Instance of Indicator class
-    """
-
-    class Settings(Enum):
-        """
-        Represents the settings available for the nordvpn client.
-        Each value is the exact match of the setting name
-        """
-        PROTOCOL = "Protocol"
-        KILL_SWITCH = "Kill Switch"
-        CYBER_SEC = "CyberSec"
-        OBFUSCATE = "Obfuscate"
-        AUTO_CONNECT = "Auto-connect"
-        DNS = "DNS"
-        NOTIFY = "Notify"
-
-    def __init__(self):
-        self.indicator = None
-        self.connected = VPN_STATUS.WAITING
-        self.status = ""
-
-    def attach(self, indicator):
-        """
-        Attaches an indicator for notifying connection changes
-
-        Args:
-            indicator: Indicator instance
-        """
-        indicator.nordvpn = self
-        self.indicator = indicator
-
-    def run_command(self, command):
-        """
-        Runs bash commands and notifies on errors
-
-        Args:
-            command: Bash command to run
-
-        Returns:
-            Output of the bash command
-        """
-        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        if error is not None:
-            self.indicator.report(error)
-        return output
-
-    def connect(self, _):
-        """
-        Runs command to connect with a NordVPN server
-
-        Args:
-            _: As required by AppIndicator
-        """
-        self.connected = VPN_STATUS.WAITING
-        output = self.run_command("nordvpn connect")
-
-        # Check output
-        if output is not None:
-            matches = re.search('You are now connected to .*', output)
-            if matches is not None:
-                output = matches.group(0)
-                self.connected = VPN_STATUS.CONNECTED
-
-    def connect_to_country(self, country):
-        """
-        Runs command to connect to a NordVPN server in the specified country
-
-        Args:
-            country: Country name as string
-        """
-        self.connected = VPN_STATUS.WAITING
-        output = self.run_command("nordvpn connect {}".format(country))
-
-        # Check output
-        if output is not None:
-            matches = re.search('You are now connected to .*', output)
-            if matches is not None:
-                output = matches.group(0)
-                self.connected = VPN_STATUS.CONNECTED
-
-    def disconnect(self, _):
-        """
-        Runs command to disconnect with the currently connected NordVPN server
-
-        Args:
-            _: As required by AppIndicator
-        """
-        self.connected = VPN_STATUS.WAITING
-        output = self.run_command("nordvpn disconnect")
-        if output is not None:
-            matches = re.search('You have been disconnected from NordVPN.', output)
-            if matches is not None:
-                self.connected = VPN_STATUS.DISCONNECTED
-
-    def status_check(self, _):
-        """
-        Checks if an IP is outputted by the NordVPN status command
-
-        Args:
-            _: As required by AppIndicator
-        """
-        connected_ip = None
-
-        # Get reported NordVPN IP
-        output = self.run_command("nordvpn status")
-        if output is not None:
-            self.status = output.split('  ')[1].strip()
-            matches = re.search(r'(([0-9])+\.){3}([0-9]+)', output)
-            if matches is not None:
-                connected_ip = matches.group(0)
-
-        self.connected = VPN_STATUS.DISCONNECTED if connected_ip is None else VPN_STATUS.CONNECTED
-
-    def get_status(self):
-        """
-        Returns the current status of the VPN connection as a string
-        """
-        return self.status
-
-    def is_connected(self):
-        """
-        Returns VPN_STATUS instance representing the connection status
-        """
-        return self.connected
-
-    def get_countries(self):
-        """
-        Returns a list of string representing the available countries
-        """
-        countries = self.run_command('nordvpn countries')
-        if countries is None:
-            return []
-        #country_list = ''.join(countries).split(' ')[2].split()
-        country_list = [c.replace(',','') for c in ''.join(countries).split()[1:]]
-        country_list.sort()
-        return country_list
-
-    def get_settings(self):
-        """
-        Read the current settings from the client app and return them as dictionary
-
-        Returns:
-            - A dictionary {Setting:Value} where Setting is a instance of Settings Enum
-        """
-        settings = {}
-        output = self.run_command('nordvpn settings')
-        output = output.splitlines()[3:]
-        for setting in output:
-            key = setting.split(':')[0].strip()
-            value = setting.split(':')[1].strip()
-
-            if key == NordVPN.Settings.PROTOCOL.value:
-                value = 'enabled' if value == 'TCP' else 'disabled'
-
-            settings[NordVPN.Settings(key)] = True if value == 'enabled' else False
-        return settings
-
-    def set_settings(self, settings):
-        """
-        Handle the update of nord vpn settings from the indicator app
-
-        Args:
-            - settings: a dict {NordVPN.Settings : value} representing settings to set.
-                        Settings will be updated only if their related key is in the dict
-        """
-        for key, value in settings.items():
-            setting = value
-            if key == NordVPN.Settings.AUTO_CONNECT:
-                if value == 'Off':
-                    setting = False
-                elif value == 'Automatic':
-                    setting = True
-                else:
-                    setting = 'on {}'.format(value.lower())
-            self.run_command('nordvpn set {} {}'.format(key.value.replace(' ','').lower(), str(setting).lower()))
-
+        if widget.get_name() == Settings.PROTOCOL.value:
+            self.settings[Settings.PROTOCOL] = widget.get_active_text()
+        elif widget.get_name() == Settings.KILL_SWITCH.value:
+            self.settings[Settings.KILL_SWITCH] = (widget.get_active_text().lower() == 'on')
+        elif widget.get_name() == Settings.CYBER_SEC.value:
+            self.settings[Settings.CYBER_SEC] = (widget.get_active_text().lower() == 'on')
+        elif widget.get_name() == Settings.OBFUSCATE.value:
+            self.settings[Settings.OBFUSCATE] = (widget.get_active_text().lower() == 'on')
+        elif widget.get_name() == Settings.AUTO_CONNECT.value:
+            self.settings[Settings.AUTO_CONNECT] = widget.get_active_text().replace(' ','_')
+        elif widget.get_name() == Settings.NOTIFY.value:
+            self.settings[Settings.NOTIFY] = (widget.get_active_text().lower() == 'on')
 
 def main():
     """
