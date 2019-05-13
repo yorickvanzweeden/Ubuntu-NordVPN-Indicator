@@ -159,7 +159,7 @@ class NordVPN(object):
         """
         output = self.run_command("nordvpn status")
         if output is not None:
-            raw = output.split('  ')[1].strip()
+            raw = output.strip()
             self.status.update(raw)
 
     def get_status(self):
