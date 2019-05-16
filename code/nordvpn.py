@@ -63,22 +63,33 @@ class NordVPNStatus():
     def update(self, raw_status):
         # Save the raw status string
         self.raw_status = raw_status
-        # Group status values
+
+        # Try to parse each parameter
         try:
-            values = raw_status.split('\n')
-            for v in values:
-                # Parse status key and value
-                key = v.split(':')[0].strip()
-                value = v.split(':')[1].strip()
-
-                # Special parsing for connection status as it's not a string
-                if key == NordVPNStatus.Param.STATUS.value:
-                    value = ConnectionStatus(value)
-
-                # Update the status parameter in the dict member
-                self.data[NordVPNStatus.Param(key)] = value
+            for param in NordVPNStatus.Param:
+                # Status needs to be converted and must always be present
+                if param == NordVPNStatus.Param.STATUS:
+                    status = self._parse_param(NordVPNStatus.Param.STATUS.value, raw_status, True)
+                    self.data[NordVPNStatus.Param.STATUS] = ConnectionStatus(status)
+                else:
+                    # Parse parameter and store its value
+                    value = self._parse_param(param.value, raw_status)
+                    self.data[param] = value
         except Exception as e:
             self.data[NordVPNStatus.Param.STATUS] = ConnectionStatus.WAITING
+
+    def _parse_param(self, param, source, throw=False):
+        """
+        Parse the parameter from the source string. If throw is True, an exception
+        is thrown when the parameter is not found.
+        Return the value string of the parsed parameter key
+        """
+        match = re.search(r"{}:\s(.*)".format(param), source)
+        if match is None and throw:
+            raise Exception("Unable to parse {} from {}".format(param, source))
+        elif match is None:
+            return "Unknown"
+        return match.group(1).strip()
 
 
 class NordVPN(object):
@@ -159,7 +170,7 @@ class NordVPN(object):
         """
         output = self.run_command("nordvpn status")
         if output is not None:
-            raw = output.split('  ')[1].strip()
+            raw = output.strip()
             self.status.update(raw)
 
     def get_status(self):
