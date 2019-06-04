@@ -286,3 +286,31 @@ class NordVPN(object):
         Connect to a server group
         """
         output = self.run_command("nordvpn connect {}".format(group.replace(' ','_')))
+
+    def get_cities(self, country):
+        """
+        Return the list of cities available for the given country
+        """
+        cities = self.run_command('nordvpn cities {}'.format(country.replace(' ','_')))
+        if cities is None:
+            return []
+        self._parse_cities(cities)
+
+    def _parse_cities(self, cities):
+        """
+        Parse he output of nordvpn cities <country> command into a list of string
+        """
+        if cities is None:
+            return []
+        parsed_list = re.findall(r'(\w{2,})+', cities)
+        if parsed_list is None:
+            return []
+        parsed_list.sort()
+        parsed_list = list(map(lambda r: r.replace('_', ' ').strip(), parsed_list))
+        return parsed_list
+
+    def connect_to_city(self, country, city):
+        """
+        Connect to a specific city server
+        """
+        output = self.run_command("nordvpn connect {} {}".format(country.replace(' ','_'), city.replace(' ','_')))
