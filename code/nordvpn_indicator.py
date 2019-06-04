@@ -114,6 +114,16 @@ class Indicator(object):
             countries_menu.append(item)
         menu_connect.append(item_connect_country)
 
+        groups = self.nordvpn.get_groups()
+        groups_menu = gtk.Menu()
+        item_connect_group = gtk.MenuItem('Groups')
+        item_connect_group.set_submenu(groups_menu)
+        for g in groups:
+            item = gtk.MenuItem(g)
+            item.connect('activate', self.group_connect_cb)
+            groups_menu.append(item)
+        menu_connect.append(item_connect_group)
+
         item_disconnect = gtk.MenuItem('Disconnect')
         item_disconnect.connect('activate', self.nordvpn.disconnect)
         menu.append(item_disconnect)
@@ -181,6 +191,13 @@ class Indicator(object):
         """
         window = SettingsWindow(self.nordvpn)
         window.show_all()
+
+    def group_connect_cb(self, menu_item):
+        """
+        Callback to connect to a server group
+        """
+        self.nordvpn.disconnect(None)
+        self.nordvpn.connect_to_group(menu_item.get_label())
 
 class SettingsWindow(gtk.Window):
     """

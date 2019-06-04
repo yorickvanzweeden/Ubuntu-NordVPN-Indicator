@@ -237,6 +237,29 @@ class NordVPN(object):
         parsed_list = list(map(lambda r: r.replace('_', ' '), parsed_list))
         return parsed_list
 
+    def get_groups(self):
+        """
+        Returns a list of string representing the available groups
+        """
+        groups = self.run_command('nordvpn groups')
+        if groups is None:
+            return []
+        return self._parse_groups(groups)
+
+    def _parse_groups(self, groups):
+        """
+        Parse the output of nordvpn groups command into a list of string
+        """
+        if groups is None:
+            return []
+        parsed_list = re.findall(r'(\w{2,})+', groups)
+        if parsed_list is None:
+            return []
+        # Sort the list and replace nasty characters
+        parsed_list.sort()
+        parsed_list = list(map(lambda r: r.replace('_', ' '), parsed_list))
+        return parsed_list
+
     def _parse_settings(self, raw):
         """
         Parse the raw output of "nordvpn settings" command.
@@ -257,3 +280,9 @@ class NordVPN(object):
             settings[Settings(
                 key)] = True if value == 'enabled' else False
         return settings
+
+    def connect_to_group(self, group):
+        """
+        Connect to a server group
+        """
+        output = self.run_command("nordvpn connect {}".format(group.replace(' ','_')))
