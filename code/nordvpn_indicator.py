@@ -109,7 +109,7 @@ class Indicator(object):
         item_connect_country = gtk.MenuItem('Countries')
         item_connect_country.set_submenu(countries_menu)
         for c in countries:
-            item = gtk.MenuItem(c.replace('_',' '))
+            item = gtk.MenuItem(c)
             item.connect('activate', self.country_connect_cb)
             countries_menu.append(item)
         menu_connect.append(item_connect_country)
@@ -268,8 +268,7 @@ class SettingsWindow(gtk.Window):
         combo_autoconnect.append('off', 'Off')
         combo_autoconnect.append('auto', 'Automatic')
         for c in self.nordvpn.get_countries():
-            name = c.replace('_',' ')
-            combo_autoconnect.append(name.lower(), name)
+            combo_autoconnect.append(c.lower(), c)
         combo_autoconnect.set_active_id('auto' if settings[Settings.AUTO_CONNECT] else 'off')
         combo_autoconnect.connect('changed', self.on_setting_update)
         row_autoconnect.add(combo_autoconnect)

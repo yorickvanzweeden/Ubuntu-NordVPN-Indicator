@@ -184,14 +184,10 @@ class NordVPN(object):
         """
         Returns a list of string representing the available countries
         """
-        countries = self.run_command('nordvpn countries')
-        if countries is None:
+        raw_countries = self.run_command('nordvpn countries')
+        if raw_countries is None:
             return []
-        # country_list = ''.join(countries).split(' ')[2].split()
-        country_list = [c.replace(',', '')
-                        for c in ''.join(countries).split()[1:]]
-        country_list.sort()
-        return country_list
+        return self._parse_countries(raw_countries)
 
     def get_settings(self):
         """
@@ -200,19 +196,10 @@ class NordVPN(object):
         Returns:
             - A dictionary {Setting:Value} where Setting is a instance of Settings Enum
         """
-        settings = {}
         output = self.run_command('nordvpn settings')
-        output = output.splitlines()[3:]
-        for setting in output:
-            key = setting.split(':')[0].strip()
-            value = setting.split(':')[1].strip()
-
-            if key == Settings.PROTOCOL.value:
-                value = 'enabled' if value == 'TCP' else 'disabled'
-
-            settings[Settings(
-                key)] = True if value == 'enabled' else False
-        return settings
+        if output is None:
+            return {}
+        return self._parse_settings(output)
 
     def set_settings(self, settings):
         """
@@ -232,4 +219,41 @@ class NordVPN(object):
                 else:
                     setting = 'on {}'.format(value.lower())
             self.run_command('nordvpn set {} {}'.format(
-                key.value.replace(' ', '').lower(), str(setting).lower()))
+                key.value.replace(' ', '').replace('-', '').lower(), str(setting).lower()))
+
+    def _parse_countries(self, raw):
+        """
+        Parse the raw output of "nordvpn countries" command into a list of country
+        names as strings, sorted alphabetically
+        Return list() object
+        """
+        if raw is None:
+            return []
+        parsed_list = re.findall(r'(\w{2,})+', raw)
+        if parsed_list is None:
+            return []
+        # Sort the list and replace nasty characters
+        parsed_list.sort()
+        parsed_list = list(map(lambda r: r.replace('_', ' '), parsed_list))
+        return parsed_list
+
+    def _parse_settings(self, raw):
+        """
+        Parse the raw output of "nordvpn settings" command.
+        Returns a dictionary {Setting:Value} where Setting is a instance of Settings Enum
+        """
+        settings = {}
+        if raw is None:
+            return []
+        # Parse parameters with len > 2 to discard - characters at the beginning
+        match = re.findall(r"(\S{2,}\s*\S*):\s*(\S+)", raw)
+        if match is None:
+            return []
+        for key, value in match:
+            # PROTOCOL has special values
+            if key == Settings.PROTOCOL.value:
+                value = 'enabled' if value == 'TCP' else 'disabled'
+            # Create Settings instance
+            settings[Settings(
+                key)] = True if value == 'enabled' else False
+        return settings
