@@ -5,6 +5,7 @@ import re
 import subprocess
 from enum import Enum, unique
 
+
 @unique
 class ConnectionStatus(Enum):
     """
@@ -13,6 +14,7 @@ class ConnectionStatus(Enum):
     CONNECTED = 'Connected'
     DISCONNECTED = 'Disconnected'
     WAITING = 'Connecting'
+
 
 @unique
 class Settings(Enum):
@@ -69,8 +71,10 @@ class NordVPNStatus():
             for param in NordVPNStatus.Param:
                 # Status needs to be converted and must always be present
                 if param == NordVPNStatus.Param.STATUS:
-                    status = self._parse_param(NordVPNStatus.Param.STATUS.value, raw_status, True)
-                    self.data[NordVPNStatus.Param.STATUS] = ConnectionStatus(status)
+                    status = self._parse_param(
+                        NordVPNStatus.Param.STATUS.value, raw_status, True)
+                    self.data[NordVPNStatus.Param.STATUS] = ConnectionStatus(
+                        status)
                 else:
                     # Parse parameter and store its value
                     value = self._parse_param(param.value, raw_status)
@@ -105,34 +109,10 @@ class NordVPN(object):
     """
 
     def __init__(self):
-        self.indicator = None
         self.status = NordVPNStatus()
+        self.UPDATE_WARNING = 'A new version of NordVPN is available! Please update the application.'
 
-    def attach(self, indicator):
-        """
-        Attaches an indicator for notifying connection changes
-
-        Args:
-            indicator: Indicator instance
-        """
-        indicator.nordvpn = self
-        self.indicator = indicator
-
-    def run_command(self, command):
-        """
-        Runs bash commands and notifies on errors
-
-        Args:
-            command: Bash command to run
-
-        Returns:
-            Output of the bash command
-        """
-        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        if error is not None:
-            self.indicator.report(error)
-        return output
+### Connection interfaces
 
     def connect(self, _):
         """
@@ -141,7 +121,7 @@ class NordVPN(object):
         Args:
             _: As required by AppIndicator
         """
-        output = self.run_command("nordvpn connect")
+        output = self._run_command("nordvpn connect")
 
     def connect_to_country(self, country):
         """
@@ -150,7 +130,22 @@ class NordVPN(object):
         Args:
             country: Country name as string
         """
-        output = self.run_command("nordvpn connect {}".format(country.replace(' ','_')))
+        output = self._run_command(
+            "nordvpn connect {}".format(country.replace(' ', '_')))
+
+    def connect_to_group(self, group):
+        """
+        Connect to a server group
+        """
+        output = self._run_command(
+            "nordvpn connect {}".format(group.replace(' ', '_')))
+
+    def connect_to_city(self, country, city):
+        """
+        Connect to a specific city server
+        """
+        output = self._run_command("nordvpn connect {} {}".format(
+            country.replace(' ', '_'), city.replace(' ', '_')))
 
     def disconnect(self, _):
         """
@@ -159,35 +154,25 @@ class NordVPN(object):
         Args:
             _: As required by AppIndicator
         """
-        output = self.run_command("nordvpn disconnect")
+        output = self._run_command("nordvpn disconnect")
 
-    def status_check(self):
-        """
-        Checks if an IP is outputted by the NordVPN status command
-
-        Args:
-            _: As required by AppIndicator
-        """
-        output = self.run_command("nordvpn status")
-        if output is not None:
-            raw = output.strip()
-            self.status.update(raw)
+### Getters and Setters interfaces
 
     def get_status(self):
         """
         Returns the current status of the VPN connection as a string
         """
-        self.status_check()
+        self._status_check()
         return self.status
 
     def get_countries(self):
         """
         Returns a list of string representing the available countries
         """
-        raw_countries = self.run_command('nordvpn countries')
+        raw_countries = self._run_command('nordvpn countries')
         if raw_countries is None:
             return []
-        return self._parse_countries(raw_countries)
+        return self._parse_words(raw_countries)
 
     def get_settings(self):
         """
@@ -196,7 +181,7 @@ class NordVPN(object):
         Returns:
             - A dictionary {Setting:Value} where Setting is a instance of Settings Enum
         """
-        output = self.run_command('nordvpn settings')
+        output = self._run_command('nordvpn settings')
         if output is None:
             return {}
         return self._parse_settings(output)
@@ -218,41 +203,68 @@ class NordVPN(object):
                     setting = True
                 else:
                     setting = 'on {}'.format(value.lower())
-            self.run_command('nordvpn set {} {}'.format(
+            self._run_command('nordvpn set {} {}'.format(
                 key.value.replace(' ', '').replace('-', '').lower(), str(setting).lower()))
-
-    def _parse_countries(self, raw):
-        """
-        Parse the raw output of "nordvpn countries" command into a list of country
-        names as strings, sorted alphabetically
-        Return list() object
-        """
-        if raw is None:
-            return []
-        parsed_list = re.findall(r'(\w{2,})+', raw)
-        if parsed_list is None:
-            return []
-        # Sort the list and replace nasty characters
-        parsed_list.sort()
-        parsed_list = list(map(lambda r: r.replace('_', ' '), parsed_list))
-        return parsed_list
 
     def get_groups(self):
         """
         Returns a list of string representing the available groups
         """
-        groups = self.run_command('nordvpn groups')
+        groups = self._run_command('nordvpn groups')
         if groups is None:
             return []
-        return self._parse_groups(groups)
+        return self._parse_words(groups)
 
-    def _parse_groups(self, groups):
+    def get_cities(self, country):
         """
-        Parse the output of nordvpn groups command into a list of string
+        Return the list of cities available for the given country
         """
-        if groups is None:
+        cities = self._run_command(
+            'nordvpn cities {}'.format(country.replace(' ', '_')))
+        if cities is None:
             return []
-        parsed_list = re.findall(r'(\w{2,})+', groups)
+        return self._parse_words(cities)
+
+### Private functions
+
+    def _run_command(self, command):
+        """
+        Runs bash commands and notifies on errors
+
+        Args:
+            command: Bash command to run
+
+        Returns:
+            Output of the bash command
+        """
+        process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+        output, error = process.communicate()
+        if error is not None:
+            self.status.update('Error running command: {}'.format(command))
+        if self.UPDATE_WARNING in output:
+            self.status.update('Warning: new version of the nordvpn client available')
+        return output
+
+    def _status_check(self):
+        """
+        Checks if an IP is outputted by the NordVPN status command
+
+        Args:
+            _: As required by AppIndicator
+        """
+        output = self._run_command("nordvpn status")
+        if output is not None:
+            raw = output.strip()
+            self.status.update(raw)
+
+    def _parse_words(self, raw):
+        """
+        Search for any separated words from the raw input string.
+        Returns a list of the extracted words sorted alphabetically.
+        """
+        if raw is None:
+            return []
+        parsed_list = re.findall(r'(\w{2,})+', raw)
         if parsed_list is None:
             return []
         # Sort the list and replace nasty characters
@@ -280,37 +292,3 @@ class NordVPN(object):
             settings[Settings(
                 key)] = True if value == 'enabled' else False
         return settings
-
-    def connect_to_group(self, group):
-        """
-        Connect to a server group
-        """
-        output = self.run_command("nordvpn connect {}".format(group.replace(' ','_')))
-
-    def get_cities(self, country):
-        """
-        Return the list of cities available for the given country
-        """
-        cities = self.run_command('nordvpn cities {}'.format(country.replace(' ','_')))
-        if cities is None:
-            return []
-        self._parse_cities(cities)
-
-    def _parse_cities(self, cities):
-        """
-        Parse he output of nordvpn cities <country> command into a list of string
-        """
-        if cities is None:
-            return []
-        parsed_list = re.findall(r'(\w{2,})+', cities)
-        if parsed_list is None:
-            return []
-        parsed_list.sort()
-        parsed_list = list(map(lambda r: r.replace('_', ' ').strip(), parsed_list))
-        return parsed_list
-
-    def connect_to_city(self, country, city):
-        """
-        Connect to a specific city server
-        """
-        output = self.run_command("nordvpn connect {} {}".format(country.replace(' ','_'), city.replace(' ','_')))

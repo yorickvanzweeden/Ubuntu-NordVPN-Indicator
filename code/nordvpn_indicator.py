@@ -11,11 +11,9 @@ import gi
 
 gi.require_version('Gtk', '3.0')
 gi.require_version('AppIndicator3', '0.1')
-gi.require_version('Notify', '0.7')
 
 from gi.repository import Gtk as gtk
 from gi.repository import AppIndicator3 as appindicator
-from gi.repository import Notify as notify
 
 from nordvpn import NordVPN, ConnectionStatus, Settings, NordVPNStatus
 
@@ -36,8 +34,6 @@ class Indicator(object):
         Instance of Indicator class
     """
     def __init__(self, nordvpn):
-        # Set references within both classes
-        nordvpn.attach(self)
         self.nordvpn = nordvpn
 
         # Add indicator
@@ -50,8 +46,6 @@ class Indicator(object):
 
         # Set recurrent timer for checking VPN status
         self.status_check_loop()
-
-        notify.init(APPINDICATOR_ID)
         gtk.main()
 
     def status_check_loop(self):
@@ -158,7 +152,6 @@ class Indicator(object):
         in quitting the application
         """
         self.timer.cancel()
-        notify.uninit()
         gtk.main_quit()
 
     def country_connect_cb(self, btn_toggled):
@@ -174,16 +167,6 @@ class Indicator(object):
         """
         self.nordvpn.disconnect(None)
         self.nordvpn.connect(None)
-
-    def report(self, message):
-        """
-        Notifies indicator of connection issues and passes a notification
-        message
-
-        Args:
-            message: Message that will be displayed as notification
-        """
-        notify.Notification.new("NordVPN", message, None).show()
 
     def display_settings_window(self, widget):
         """
