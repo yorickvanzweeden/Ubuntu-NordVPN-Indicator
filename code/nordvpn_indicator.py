@@ -84,19 +84,18 @@ class Indicator(object):
         """
         Builds menu for the tray icon
         """
-        menu = gtk.Menu()
+        main_menu = gtk.Menu()
 
         # Create a Connect submenu
         menu_connect = gtk.Menu()
         item_connect = gtk.MenuItem('Connect')
         item_connect.set_submenu(menu_connect)
+        main_menu.append(item_connect)
 
         # First item is to connect automatically
         item_connect_auto = gtk.MenuItem('Auto')
         item_connect_auto.connect('activate', self.auto_connect_cb)
         menu_connect.append(item_connect_auto)
-
-        menu.append(item_connect)
 
         countries = self.nordvpn.get_countries()
         countries_menu = gtk.Menu()
@@ -120,7 +119,7 @@ class Indicator(object):
 
         item_disconnect = gtk.MenuItem('Disconnect')
         item_disconnect.connect('activate', self.nordvpn.disconnect)
-        menu.append(item_disconnect)
+        main_menu.append(item_disconnect)
 
         # Create a submenu for the connection status
         menu_status = gtk.Menu()
@@ -132,19 +131,19 @@ class Indicator(object):
         menu_status.append(self.status_label)
         self.status_label.set_sensitive(False)
 
-        menu.append(item_status)
+        main_menu.append(item_status)
 
         # Define the Settings menu entry
         item_settings = gtk.MenuItem('Settings...')
         item_settings.connect('activate', self.display_settings_window)
-        menu.append(item_settings)
+        main_menu.append(item_settings)
 
         item_quit = gtk.MenuItem('Quit')
         item_quit.connect('activate', self.quit)
-        menu.append(item_quit)
+        main_menu.append(item_quit)
 
-        menu.show_all()
-        return menu
+        main_menu.show_all()
+        return main_menu
 
     def quit(self, _):
         """
