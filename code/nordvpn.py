@@ -112,7 +112,7 @@ class NordVPN(object):
         self.status = NordVPNStatus()
         self.UPDATE_WARNING = 'A new version of NordVPN is available! Please update the application.'
 
-### Connection interfaces
+# Connection interfaces
 
     def connect(self, _):
         """
@@ -140,12 +140,12 @@ class NordVPN(object):
         output = self._run_command(
             "nordvpn connect {}".format(group.replace(' ', '_')))
 
-    def connect_to_city(self, country, city):
+    def connect_to_city(self, city):
         """
         Connect to a specific city server
         """
-        output = self._run_command("nordvpn connect {} {}".format(
-            country.replace(' ', '_'), city.replace(' ', '_')))
+        output = self._run_command(
+            "nordvpn connect {}".format(city.replace(' ', '_')))
 
     def disconnect(self, _):
         """
@@ -156,7 +156,7 @@ class NordVPN(object):
         """
         output = self._run_command("nordvpn disconnect")
 
-### Getters and Setters interfaces
+# Getters and Setters interfaces
 
     def get_status(self):
         """
@@ -225,7 +225,7 @@ class NordVPN(object):
             return []
         return self._parse_words(cities)
 
-### Private functions
+# Private functions
 
     def _run_command(self, command):
         """
@@ -242,7 +242,8 @@ class NordVPN(object):
         if error is not None:
             self.status.update('Error running command: {}'.format(command))
         if self.UPDATE_WARNING in output:
-            self.status.update('Warning: new version of the nordvpn client available')
+            self.status.update(
+                'Warning: new version of the nordvpn client available')
         return output
 
     def _status_check(self):
