@@ -11,11 +11,9 @@ import gi
 
 gi.require_version('Gtk', '3.0')
 gi.require_version('AppIndicator3', '0.1')
-gi.require_version('Notify', '0.7')
 
 from gi.repository import Gtk as gtk
 from gi.repository import AppIndicator3 as appindicator
-from gi.repository import Notify as notify
 
 from nordvpn import NordVPN, ConnectionStatus, Settings, NordVPNStatus
 
@@ -36,8 +34,6 @@ class Indicator(object):
         Instance of Indicator class
     """
     def __init__(self, nordvpn):
-        # Set references within both classes
-        nordvpn.attach(self)
         self.nordvpn = nordvpn
 
         # Add indicator
@@ -50,8 +46,6 @@ class Indicator(object):
 
         # Set recurrent timer for checking VPN status
         self.status_check_loop()
-
-        notify.init(APPINDICATOR_ID)
         gtk.main()
 
     def status_check_loop(self):
@@ -90,57 +84,85 @@ class Indicator(object):
         """
         Builds menu for the tray icon
         """
-        menu = gtk.Menu()
+        main_menu = gtk.Menu()
 
         # Create a Connect submenu
         menu_connect = gtk.Menu()
         item_connect = gtk.MenuItem('Connect')
         item_connect.set_submenu(menu_connect)
+        main_menu.append(item_connect)
 
         # First item is to connect automatically
         item_connect_auto = gtk.MenuItem('Auto')
         item_connect_auto.connect('activate', self.auto_connect_cb)
         menu_connect.append(item_connect_auto)
 
-        menu.append(item_connect)
-
+        # Second item is submenu to select the country
         countries = self.nordvpn.get_countries()
         countries_menu = gtk.Menu()
         item_connect_country = gtk.MenuItem('Countries')
         item_connect_country.set_submenu(countries_menu)
-        for c in countries:
-            item = gtk.MenuItem(c)
+        for country in countries:
+            item = gtk.MenuItem(country)
             item.connect('activate', self.country_connect_cb)
             countries_menu.append(item)
         menu_connect.append(item_connect_country)
 
+        # Next item is submenu to select a specific city
+        cities_menu = gtk.Menu()
+        item_connect_city = gtk.MenuItem('Cities')
+        item_connect_city.set_submenu(cities_menu)
+        for country in countries:
+            # Draw the country as disabled
+            item_country = gtk.MenuItem(country)
+            item_country.set_sensitive(False)
+            cities_menu.append(item_country)
+            # List the cities below
+            cities = self.nordvpn.get_cities(country)
+            for city in cities:
+                item_city = gtk.MenuItem(city)
+                item_city.connect('activate', self.city_connect_cb)
+                cities_menu.append(item_city)
+        menu_connect.append(item_connect_city)
+
+        # Next item is submenu to select a server group
+        groups = self.nordvpn.get_groups()
+        groups_menu = gtk.Menu()
+        item_connect_group = gtk.MenuItem('Groups')
+        item_connect_group.set_submenu(groups_menu)
+        for g in groups:
+            item = gtk.MenuItem(g)
+            item.connect('activate', self.group_connect_cb)
+            groups_menu.append(item)
+        menu_connect.append(item_connect_group)
+
+        # Disconnect item
         item_disconnect = gtk.MenuItem('Disconnect')
         item_disconnect.connect('activate', self.nordvpn.disconnect)
-        menu.append(item_disconnect)
+        main_menu.append(item_disconnect)
 
         # Create a submenu for the connection status
         menu_status = gtk.Menu()
         item_status = gtk.MenuItem('Status')
         item_status.set_submenu(menu_status)
+        main_menu.append(item_status)
 
         # Add a label to show the current status details
         self.status_label = gtk.MenuItem('')
         menu_status.append(self.status_label)
         self.status_label.set_sensitive(False)
 
-        menu.append(item_status)
-
         # Define the Settings menu entry
         item_settings = gtk.MenuItem('Settings...')
         item_settings.connect('activate', self.display_settings_window)
-        menu.append(item_settings)
+        main_menu.append(item_settings)
 
         item_quit = gtk.MenuItem('Quit')
         item_quit.connect('activate', self.quit)
-        menu.append(item_quit)
+        main_menu.append(item_quit)
 
-        menu.show_all()
-        return menu
+        main_menu.show_all()
+        return main_menu
 
     def quit(self, _):
         """
@@ -148,7 +170,6 @@ class Indicator(object):
         in quitting the application
         """
         self.timer.cancel()
-        notify.uninit()
         gtk.main_quit()
 
     def country_connect_cb(self, btn_toggled):
@@ -165,22 +186,26 @@ class Indicator(object):
         self.nordvpn.disconnect(None)
         self.nordvpn.connect(None)
 
-    def report(self, message):
-        """
-        Notifies indicator of connection issues and passes a notification
-        message
-
-        Args:
-            message: Message that will be displayed as notification
-        """
-        notify.Notification.new("NordVPN", message, None).show()
-
     def display_settings_window(self, widget):
         """
         Display a new window showing the settings of the NordVPN client app
         """
         window = SettingsWindow(self.nordvpn)
         window.show_all()
+
+    def group_connect_cb(self, menu_item):
+        """
+        Callback to connect to a server group
+        """
+        self.nordvpn.disconnect(None)
+        self.nordvpn.connect_to_group(menu_item.get_label())
+
+    def city_connect_cb(self, menu_item):
+        """
+        Callback to connet to a city server
+        """
+        self.nordvpn.disconnect(None)
+        self.nordvpn.connect_to_city(menu_item.get_label())
 
 class SettingsWindow(gtk.Window):
     """
@@ -267,8 +292,8 @@ class SettingsWindow(gtk.Window):
         combo_autoconnect.set_property('name', Settings.AUTO_CONNECT.value)
         combo_autoconnect.append('off', 'Off')
         combo_autoconnect.append('auto', 'Automatic')
-        for c in self.nordvpn.get_countries():
-            combo_autoconnect.append(c.lower(), c)
+        for country in self.nordvpn.get_countries():
+            combo_autoconnect.append(country.lower(), country)
         combo_autoconnect.set_active_id('auto' if settings[Settings.AUTO_CONNECT] else 'off')
         combo_autoconnect.connect('changed', self.on_setting_update)
         row_autoconnect.add(combo_autoconnect)
