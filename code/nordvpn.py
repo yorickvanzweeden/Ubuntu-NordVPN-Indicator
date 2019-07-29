@@ -239,6 +239,8 @@ class NordVPN(object):
         """
         process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
         output, error = process.communicate()
+        # Decode from bytes to string
+        output = output.decode()
         if error is not None:
             self.status.update('Error running command: {}'.format(command))
         if self.UPDATE_WARNING in output:
