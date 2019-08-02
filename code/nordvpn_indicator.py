@@ -62,7 +62,7 @@ class Indicator(object):
         """
         status = self.nordvpn.get_status()
         self.status_label.set_label(status.raw_status)
-        self.indicator.set_icon(self.get_icon_path(status.data[NordVPNStatus.Param.STATUS]))
+        self.indicator.set_icon_full(self.get_icon_path(status.data[NordVPNStatus.Param.STATUS]),'')
 
     @staticmethod
     def get_icon_path(connected):
@@ -88,39 +88,39 @@ class Indicator(object):
 
         # Create a Connect submenu
         menu_connect = gtk.Menu()
-        item_connect = gtk.MenuItem('Connect')
+        item_connect = gtk.MenuItem(label='Connect')
         item_connect.set_submenu(menu_connect)
         main_menu.append(item_connect)
 
         # First item is to connect automatically
-        item_connect_auto = gtk.MenuItem('Auto')
+        item_connect_auto = gtk.MenuItem(label='Auto')
         item_connect_auto.connect('activate', self.auto_connect_cb)
         menu_connect.append(item_connect_auto)
 
         # Second item is submenu to select the country
         countries = self.nordvpn.get_countries()
         countries_menu = gtk.Menu()
-        item_connect_country = gtk.MenuItem('Countries')
+        item_connect_country = gtk.MenuItem(label='Countries')
         item_connect_country.set_submenu(countries_menu)
         for country in countries:
-            item = gtk.MenuItem(country)
+            item = gtk.MenuItem(label=country)
             item.connect('activate', self.country_connect_cb)
             countries_menu.append(item)
         menu_connect.append(item_connect_country)
 
         # Next item is submenu to select a specific city
         cities_menu = gtk.Menu()
-        item_connect_city = gtk.MenuItem('Cities')
+        item_connect_city = gtk.MenuItem(label='Cities')
         item_connect_city.set_submenu(cities_menu)
         for country in countries:
             # Draw the country as disabled
-            item_country = gtk.MenuItem(country)
+            item_country = gtk.MenuItem(label=country)
             item_country.set_sensitive(False)
             cities_menu.append(item_country)
             # List the cities below
             cities = self.nordvpn.get_cities(country)
             for city in cities:
-                item_city = gtk.MenuItem(city)
+                item_city = gtk.MenuItem(label=city)
                 item_city.connect('activate', self.city_connect_cb)
                 cities_menu.append(item_city)
         menu_connect.append(item_connect_city)
@@ -128,36 +128,36 @@ class Indicator(object):
         # Next item is submenu to select a server group
         groups = self.nordvpn.get_groups()
         groups_menu = gtk.Menu()
-        item_connect_group = gtk.MenuItem('Groups')
+        item_connect_group = gtk.MenuItem(label='Groups')
         item_connect_group.set_submenu(groups_menu)
         for g in groups:
-            item = gtk.MenuItem(g)
+            item = gtk.MenuItem(label=g)
             item.connect('activate', self.group_connect_cb)
             groups_menu.append(item)
         menu_connect.append(item_connect_group)
 
         # Disconnect item
-        item_disconnect = gtk.MenuItem('Disconnect')
+        item_disconnect = gtk.MenuItem(label='Disconnect')
         item_disconnect.connect('activate', self.nordvpn.disconnect)
         main_menu.append(item_disconnect)
 
         # Create a submenu for the connection status
         menu_status = gtk.Menu()
-        item_status = gtk.MenuItem('Status')
+        item_status = gtk.MenuItem(label='Status')
         item_status.set_submenu(menu_status)
         main_menu.append(item_status)
 
         # Add a label to show the current status details
-        self.status_label = gtk.MenuItem('')
+        self.status_label = gtk.MenuItem(label='')
         menu_status.append(self.status_label)
         self.status_label.set_sensitive(False)
 
         # Define the Settings menu entry
-        item_settings = gtk.MenuItem('Settings...')
+        item_settings = gtk.MenuItem(label='Settings...')
         item_settings.connect('activate', self.display_settings_window)
         main_menu.append(item_settings)
 
-        item_quit = gtk.MenuItem('Quit')
+        item_quit = gtk.MenuItem(label='Quit')
         item_quit.connect('activate', self.quit)
         main_menu.append(item_quit)
 
