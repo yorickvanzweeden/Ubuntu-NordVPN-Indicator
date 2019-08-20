@@ -61,10 +61,17 @@ class NordVPNStatus():
             NordVPNStatus.Param.TRANSFER: 'Unknown',
             NordVPNStatus.Param.UPTIME: 'Unknown'
         }
+        self.warnings = set()
 
     def update(self, raw_status):
         # Save the raw status string
         self.raw_status = raw_status
+
+        # If there are warnings, show them in the raw_status
+        if len(self.warnings) > 0:
+            self.raw_status = '\n\r'.join([self.raw_status] + sorted(self.warnings))
+            self.data[NordVPNStatus.Param.STATUS] = ConnectionStatus.WAITING
+            return
 
         # Try to parse each parameter
         try:
@@ -81,6 +88,18 @@ class NordVPNStatus():
                     self.data[param] = value
         except Exception as e:
             self.data[NordVPNStatus.Param.STATUS] = ConnectionStatus.WAITING
+
+    def add_warning(self, message):
+        """
+        Add a warning message to the raw_status
+        """
+        self.warnings.add(message)
+
+    def clear_warnings(self):
+        """
+        Clear all the warning messages
+        """
+        self.warnings.clear()
 
     def _parse_param(self, param, source, throw=False):
         """
@@ -111,6 +130,7 @@ class NordVPN(object):
     def __init__(self):
         self.status = NordVPNStatus()
         self.UPDATE_WARNING = 'A new version of NordVPN is available! Please update the application.'
+        self.LOGIN_WARNING = 'Please enter your login details.'
 
 # Connection interfaces
 
@@ -122,6 +142,8 @@ class NordVPN(object):
             _: As required by AppIndicator
         """
         output = self._run_command("nordvpn connect")
+        if not self._output_has_warnings(output):
+            self.status.clear_warnings()
 
     def connect_to_country(self, country):
         """
@@ -132,6 +154,8 @@ class NordVPN(object):
         """
         output = self._run_command(
             "nordvpn connect {}".format(country.replace(' ', '_')))
+        if not self._output_has_warnings(output):
+            self.status.clear_warnings()
 
     def connect_to_group(self, group):
         """
@@ -139,6 +163,8 @@ class NordVPN(object):
         """
         output = self._run_command(
             "nordvpn connect {}".format(group.replace(' ', '_')))
+        if not self._output_has_warnings(output):
+            self.status.clear_warnings()
 
     def connect_to_city(self, city):
         """
@@ -146,6 +172,8 @@ class NordVPN(object):
         """
         output = self._run_command(
             "nordvpn connect {}".format(city.replace(' ', '_')))
+        if not self._output_has_warnings(output):
+            self.status.clear_warnings()
 
     def disconnect(self, _):
         """
@@ -155,6 +183,8 @@ class NordVPN(object):
             _: As required by AppIndicator
         """
         output = self._run_command("nordvpn disconnect")
+        if not self._output_has_warnings(output):
+            self.status.clear_warnings()
 
 # Getters and Setters interfaces
 
@@ -241,12 +271,22 @@ class NordVPN(object):
         output, error = process.communicate()
         # Decode from bytes to string
         output = output.decode()
-        if error is not None:
-            self.status.update('Error running command: {}'.format(command))
-        if self.UPDATE_WARNING in output:
-            self.status.update(
-                'Warning: new version of the nordvpn client available')
         return output
+
+    def _output_has_warnings(self, output):
+        """
+        Check if a command ouput stream contains warning strings
+        """
+        message = "Unknown error"
+        # Check warnings in output stream
+        if self.UPDATE_WARNING in output:
+            message = 'Warning: new version of the nordvpn client available'
+        elif self.LOGIN_WARNING in output:
+            message = 'Warning: Please login to NordVPN'
+        else:
+            return False
+        self.status.add_warning(message)
+        return True
 
     def _status_check(self):
         """

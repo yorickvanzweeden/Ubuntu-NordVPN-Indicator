@@ -376,8 +376,7 @@ def main():
     Signal for allowing Ctrl+C interrupts
     """
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    nordvpn = NordVPN()
-    Indicator(nordvpn)
+    Indicator(NordVPN())
 
 if __name__ == '__main__':
     main()
