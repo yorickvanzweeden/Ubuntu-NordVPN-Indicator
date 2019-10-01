@@ -16,21 +16,6 @@ class ConnectionStatus(Enum):
     WAITING = 'Connecting'
 
 
-@unique
-class Settings(Enum):
-    """
-    Represents the settings available for the NordVPN client application.
-    Each value is the exact match of the setting name
-    """
-    PROTOCOL = "Protocol"
-    KILL_SWITCH = "Kill Switch"
-    CYBER_SEC = "CyberSec"
-    OBFUSCATE = "Obfuscate"
-    AUTO_CONNECT = "Auto-connect"
-    DNS = "DNS"
-    NOTIFY = "Notify"
-
-
 class NordVPNStatus():
     """
     Status of the NordVPN client app
@@ -202,14 +187,16 @@ class NordVPN(object):
         raw_countries = self._run_command('nordvpn countries')
         if raw_countries is None:
             return []
-        return self._parse_words(raw_countries)
+        countries = self._parse_words(raw_countries)
+        countries.sort()
+        return countries
 
     def get_settings(self):
         """
         Read the current settings from the client app and return them as dictionary
 
         Returns:
-            - A dictionary {Setting:Value} where Setting is a instance of Settings Enum
+            - A dictionary {Setting:Value}
         """
         output = self._run_command('nordvpn settings')
         if output is None:
@@ -225,16 +212,22 @@ class NordVPN(object):
                         Settings will be updated only if their related key is in the dict
         """
         for key, value in settings.items():
-            setting = value
-            if key == Settings.AUTO_CONNECT:
-                if value == 'Off':
-                    setting = False
-                elif value == 'Automatic':
-                    setting = True
-                else:
-                    setting = 'on {}'.format(value.lower())
             self._run_command('nordvpn set {} {}'.format(
-                key.value.replace(' ', '').replace('-', '').lower(), str(setting).lower()))
+                self._format_setting_name(key), str(value).lower()))
+
+    def set_setting(self, setting_name, setting_args):
+        """
+        Set a specifig NordVPN setting with the given arguments
+        """
+        command = 'nordvpn set {} {}'.format(
+                self._format_setting_name(setting_name), setting_args
+            )
+        output = self._run_command(command)
+        if output is None:
+            return "Unable to change setting: {}".format(command)
+        output = ' '.join(self._parse_words(output))
+        return output
+
 
     def get_groups(self):
         """
@@ -243,7 +236,9 @@ class NordVPN(object):
         groups = self._run_command('nordvpn groups')
         if groups is None:
             return []
-        return self._parse_words(groups)
+        groups = self._parse_words(groups)
+        groups.sort()
+        return groups
 
     def get_cities(self, country):
         """
@@ -253,7 +248,21 @@ class NordVPN(object):
             'nordvpn cities {}'.format(country.replace(' ', '_')))
         if cities is None:
             return []
-        return self._parse_words(cities)
+        cities = self._parse_words(cities)
+        cities.sort()
+        return cities
+
+    def get_help_message(self, setting_name):
+        """
+        Return the help message relative to the specified setting
+        """
+        help_command = 'nordvpn set {} --help'.format(
+            self._format_setting_name(setting_name)
+        )
+        message = self._run_command(help_command)
+        if message is None:
+            return "Unable to get help message. Command: {}".format(help_command)
+        return message
 
 # Private functions
 
@@ -271,7 +280,7 @@ class NordVPN(object):
         output, error = process.communicate()
         # Decode from bytes to string
         output = output.decode()
-        return output
+        return output.strip()
 
     def _output_has_warnings(self, output):
         """
@@ -311,14 +320,13 @@ class NordVPN(object):
         if parsed_list is None:
             return []
         # Sort the list and replace nasty characters
-        parsed_list.sort()
         parsed_list = list(map(lambda r: r.replace('_', ' '), parsed_list))
         return parsed_list
 
     def _parse_settings(self, raw):
         """
         Parse the raw output of "nordvpn settings" command.
-        Returns a dictionary {Setting:Value} where Setting is a instance of Settings Enum
+        Returns a dictionary {Setting:Value}
         """
         settings = {}
         if raw is None:
@@ -328,10 +336,12 @@ class NordVPN(object):
         if match is None:
             return []
         for key, value in match:
-            # PROTOCOL has special values
-            if key == Settings.PROTOCOL.value:
-                value = 'enabled' if value == 'TCP' else 'disabled'
-            # Create Settings instance
-            settings[Settings(
-                key)] = True if value == 'enabled' else False
+            settings[key] = value
         return settings
+
+    def _format_setting_name(self, setting_name):
+        """
+        Return the given setting name formatted for compatibility
+        for "nordvpn set" command
+        """
+        return setting_name.replace(' ', '').replace('-', '').lower()
