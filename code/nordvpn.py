@@ -213,14 +213,14 @@ class NordVPN(object):
         """
         for key, value in settings.items():
             self._run_command('nordvpn set {} {}'.format(
-                self._format_setting_name(key), str(value).lower()))
+                format_setting_name(key), str(value).lower()))
 
     def set_setting(self, setting_name, setting_args):
         """
         Set a specifig NordVPN setting with the given arguments
         """
         command = 'nordvpn set {} {}'.format(
-                self._format_setting_name(setting_name), setting_args
+                format_setting_name(setting_name), setting_args
             )
         output = self._run_command(command)
         if output is None:
@@ -257,7 +257,7 @@ class NordVPN(object):
         Return the help message relative to the specified setting
         """
         help_command = 'nordvpn set {} --help'.format(
-            self._format_setting_name(setting_name)
+            format_setting_name(setting_name)
         )
         message = self._run_command(help_command)
         if message is None:
@@ -339,9 +339,11 @@ class NordVPN(object):
             settings[key] = value
         return settings
 
-    def _format_setting_name(self, setting_name):
-        """
-        Return the given setting name formatted for compatibility
-        for "nordvpn set" command
-        """
-        return setting_name.replace(' ', '').replace('-', '').lower()
+# Utility functions
+
+def format_setting_name(setting_name):
+    """
+    Return the given setting name formatted for compatibility
+    for "nordvpn set" command
+    """
+    return setting_name.replace(' ', '').replace('-', '').lower()
