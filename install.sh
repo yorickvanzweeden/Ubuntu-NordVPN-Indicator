@@ -65,10 +65,11 @@ install_indicator
 # Starting script
 if pgrep -f "nordvpn_indicator" > /dev/null
 then
-    echo "Indicator already running"
-else
-    echo "Starting indicator"
-    nohup $(command -v python) /opt/ubuntu-nordvpn-indicator/nordvpn_indicator.py >/dev/null 2>&1 &
+    echo "Killing indicator"
+    kill $(pgrep -f "nordvpn_indicator")
 fi
+
+echo "Starting indicator"
+nohup $(command -v python) /opt/ubuntu-nordvpn-indicator/nordvpn_indicator.py >/dev/null 2>&1 &
 
 echo "Finished"
