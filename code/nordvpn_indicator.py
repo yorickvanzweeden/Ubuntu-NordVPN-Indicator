@@ -61,7 +61,7 @@ class Indicator(object):
         Updates the icon and the menu status item
         """
         status = self.nordvpn.get_status()
-        self.status_label.set_label(status.raw_status)
+        self.status_label.set_label(status.get_label_status())
         self.indicator.set_icon_full(self.get_icon_path(status.data[NordVPNStatus.Param.STATUS]),'')
 
     @staticmethod
