@@ -99,6 +99,9 @@ class NordVPNStatus():
             return "Unknown"
         return match.group(1).strip()
 
+    # Removes whitespace before actual status from raw_status
+    def get_label_status(self):
+        return re.findall('\w[\w:\s.]*\w',self.raw_status)[0]
 
 class NordVPN(object):
     """
