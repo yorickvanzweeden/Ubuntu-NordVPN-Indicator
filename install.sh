@@ -28,7 +28,7 @@ install_deps()
 {
     # Install gir1.2-appindicator
     echo "Installing AppIndicator and Python-GI"
-    sudo apt-get install -y gir1.2-appindicator python-gi
+    sudo apt-get install -y gir1.2-appindicator python3-gi
 }
 
 install_indicator()
@@ -51,7 +51,7 @@ then
 fi
 
 # Install dependencies if not present
-deps_available=$(dpkg -l | grep -E "gir1.2-appindicator-|python-gi"  | wc --lines)
+deps_available=$(dpkg -l | grep -E "gir1.2-appindicator-|python3-gi"  | wc --lines)
 if [[ $deps_available -eq 2 ]]
 then
     echo "Dependencies have been installed"

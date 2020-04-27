@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 """
 Adds icon to notification tray that allows for connecting
 and disconnecting to NordVPN
@@ -264,7 +264,6 @@ class SettingsWindow(gtk.Window):
         for key, value in settings.items():
             combo_set.append(key, key)
         combo_set.connect('changed', self.on_setting_selection)
-        combo_set.set_active_id(settings.items()[0][0])
         row_set.add(combo_set)
         # Entry to insert setting command
         self.entry_set = gtk.Entry()

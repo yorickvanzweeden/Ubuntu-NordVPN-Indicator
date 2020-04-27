@@ -16,8 +16,8 @@ read -p "Do you want to uninstall Python-GI? [Y/n]" -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-    echo "Uninstalling Python-GI"
-    sudo apt-get remove -y python-gi
+    echo "Uninstalling Python3-GI"
+    sudo apt-get remove -y python3-gi
 fi
 
 
